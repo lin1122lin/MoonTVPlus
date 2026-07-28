@@ -1,0 +1,128 @@
+name: Build Android Mobile APK
+
+on:
+  push:
+    branches:
+      - feat/pwa-android
+    paths:
+      - '.github/workflows/android-mobile.yml'
+      - 'apps/android-mobile/**'
+      - 'public/logo.png'
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'MoonTVPlus base URL'
+        required: true
+        default: 'https://tv.987951.xyz'
+        type: string
+      app_name:
+        description: 'Android application name'
+        required: true
+        default: 'MoonTVPlus'
+        type: string
+      version_name:
+        description: 'Application version name'
+        required: false
+        default: '1.0.0'
+        type: string
+      version_code:
+        description: 'Positive integer application version code'
+        required: false
+        default: '1'
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build:
+    name: Build Android Mobile APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Prepare Android icon
+        run: |
+          cp public/logo.png apps/android-mobile/app/src/main/res/drawable/logo.png
+
+      - name: Decode Android signing keystore
+        id: signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ -n "$ANDROID_KEYSTORE_PASSWORD" ] && [ -n "$ANDROID_KEY_ALIAS" ] && [ -n "$ANDROID_KEY_PASSWORD" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > /tmp/android-mobile-release.keystore
+            echo "build_type=release" >> "$GITHUB_OUTPUT"
+            echo "build_type_task=Release" >> "$GITHUB_OUTPUT"
+            echo "apk_suffix=release" >> "$GITHUB_OUTPUT"
+            echo "artifact_suffix=release-signed" >> "$GITHUB_OUTPUT"
+          else
+            echo "Android signing secrets are incomplete; building a debug APK."
+            echo "build_type=debug" >> "$GITHUB_OUTPUT"
+            echo "build_type_task=Debug" >> "$GITHUB_OUTPUT"
+            echo "apk_suffix=debug" >> "$GITHUB_OUTPUT"
+            echo "artifact_suffix=debug" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build APK
+        working-directory: apps/android-mobile
+        env:
+          BASE_URL: ${{ inputs.base_url || vars.ANDROID_MOBILE_BASE_URL || 'https://tv.987951.xyz' }}
+          APP_NAME: ${{ inputs.app_name || vars.ANDROID_MOBILE_APP_NAME || 'MoonTVPlus' }}
+          VERSION_NAME: ${{ inputs.version_name || '1.0.0' }}
+          VERSION_CODE: ${{ inputs.version_code || '1' }}
+          ANDROID_KEYSTORE_PATH: /tmp/android-mobile-release.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          gradle assemble${{ steps.signing.outputs.build_type_task }} \
+            -PBASE_URL="$BASE_URL" \
+            -PAPP_NAME="$APP_NAME" \
+            -PVERSION_NAME="$VERSION_NAME" \
+            -PVERSION_CODE="$VERSION_CODE"
+
+      - name: Collect APK artifact
+        run: |
+          mkdir -p /tmp/android-mobile-apk
+          cp \
+            "apps/android-mobile/app/build/outputs/apk/${{ steps.signing.outputs.build_type }}/app-${{ steps.signing.outputs.apk_suffix }}.apk" \
+            "/tmp/android-mobile-apk/moontvplus-mobile-${{ inputs.version_name || '1.0.0' }}-${{ steps.signing.outputs.artifact_suffix }}.apk"
+          sha256sum /tmp/android-mobile-apk/*.apk > /tmp/android-mobile-apk/SHA256SUMS.txt
+          ls -lh /tmp/android-mobile-apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: moontvplus-android-mobile-${{ inputs.version_name || '1.0.0' }}
+          path: /tmp/android-mobile-apk/*
+          if-no-files-found: error
+          retention-days: 30
