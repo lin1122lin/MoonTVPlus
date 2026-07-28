@@ -25,6 +25,7 @@ import { WatchRoomProvider } from '../components/WatchRoomProvider';
 import { DownloadProvider } from '../contexts/DownloadContext';
 
 const inter = Inter({ subsets: ['latin'] });
+const APP_THEME_COLOR = '#000000';
 export const dynamic = 'force-dynamic';
 
 // 动态生成 metadata，支持配置更新后的标题变化
@@ -38,6 +39,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     title: siteName,
+    applicationName: siteName,
     description: '影视聚合',
     manifest: '/manifest.json',
     // iOS 添加到主屏幕：沉浸式状态栏（需配合 viewport-fit=cover + 顶部 safe-area）
@@ -46,11 +48,17 @@ export async function generateMetadata(): Promise<Metadata> {
       statusBarStyle: 'black-translucent',
       title: siteName,
     },
+    other: {
+      'theme-color': APP_THEME_COLOR,
+      'mobile-web-app-capable': 'yes',
+    },
   };
 }
 
 export const viewport: Viewport = {
   viewportFit: 'cover',
+  themeColor: APP_THEME_COLOR,
+  colorScheme: 'dark light',
 };
 
 export default async function RootLayout({
