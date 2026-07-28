@@ -3,6 +3,7 @@
 
 const { PHASE_DEVELOPMENT_SERVER } = require('next/constants');
 const path = require('path');
+const defaultRuntimeCaching = require('next-pwa/cache');
 
 // 检测是否为边缘平台构建
 const isCloudflare = process.env.CF_PAGES === '1' || process.env.BUILD_TARGET === 'cloudflare';
@@ -196,7 +197,41 @@ const createNextConfig = (phase) => {
     dest: 'public',
     register: true,
     skipWaiting: true,
+    cacheStartUrl: false,
+    dynamicStartUrl: false,
     importScripts: ['/push-sw.js'],
+    runtimeCaching: [
+      {
+        urlPattern: ({ request, url }) => {
+          if (request.method !== 'GET') {
+            return false;
+          }
+
+          const pathname = url.pathname;
+          const isApiRequest = pathname.startsWith('/api/');
+          const isNextDataRequest = pathname.startsWith('/_next/data/');
+          const isOfflineVideoRequest = pathname.startsWith(
+            '/__moontv_idb_video__/'
+          );
+          const isMediaRequest =
+            /\.(?:m3u8|mpd|mp4|m4v|webm|ogg|ogv|flv|ts|m4s|aac|mp3|wav|vtt|srt|ass|key)$/i.test(
+              pathname
+            );
+
+          return (
+            isApiRequest ||
+            isNextDataRequest ||
+            isOfflineVideoRequest ||
+            isMediaRequest
+          );
+        },
+        handler: 'NetworkOnly',
+        options: {
+          cacheName: 'runtime-dynamic-network-only',
+        },
+      },
+      ...defaultRuntimeCaching,
+    ],
   });
 
   return withPWA(nextConfig);

@@ -16,18 +16,24 @@ const siteName = process.env.NEXT_PUBLIC_SITE_NAME || 'MoonTVPlus';
 // manifest.json 模板
 // Apple 状态栏等配置应写在 HTML meta（layout appleWebApp），非标准 manifest 字段浏览器会忽略
 const manifestTemplate = {
+  id: '/',
   name: siteName,
   short_name: siteName,
   description: '影视聚合',
+  lang: 'zh-CN',
   start_url: '/',
   scope: '/',
   display: 'standalone',
+  orientation: 'any',
   background_color: '#000000',
+  theme_color: '#000000',
+  categories: ['entertainment', 'video'],
   icons: [
     {
       src: '/icons/icon-192x192.png',
       sizes: '192x192',
       type: 'image/png',
+      purpose: 'any maskable',
     },
     {
       src: '/icons/icon-256x256.png',
@@ -43,6 +49,7 @@ const manifestTemplate = {
       src: '/icons/icon-512x512.png',
       sizes: '512x512',
       type: 'image/png',
+      purpose: 'any maskable',
     },
   ],
 };
