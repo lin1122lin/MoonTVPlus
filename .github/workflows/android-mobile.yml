@@ -3,6 +3,7 @@ name: Build Android Mobile APK
 on:
   push:
     branches:
+      - main
       - feat/pwa-android
     paths:
       - '.github/workflows/android-mobile.yml'
@@ -23,12 +24,12 @@ on:
       version_name:
         description: 'Application version name'
         required: false
-        default: '1.0.1'
+        default: '1.0.2'
         type: string
       version_code:
         description: 'Positive integer application version code'
         required: false
-        default: '2'
+        default: '3'
         type: string
 
 concurrency:
@@ -73,13 +74,13 @@ jobs:
       - name: Decode Android signing keystore
         id: signing
         env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_MOBILE_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_MOBILE_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_MOBILE_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_MOBILE_KEY_PASSWORD }}
         run: |
           if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ -n "$ANDROID_KEYSTORE_PASSWORD" ] && [ -n "$ANDROID_KEY_ALIAS" ] && [ -n "$ANDROID_KEY_PASSWORD" ]; then
-            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > /tmp/android-mobile-release.keystore
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > /tmp/android-mobile-release.p12
             echo "build_type=release" >> "$GITHUB_OUTPUT"
             echo "build_type_task=Release" >> "$GITHUB_OUTPUT"
             echo "apk_suffix=release" >> "$GITHUB_OUTPUT"
@@ -97,12 +98,13 @@ jobs:
         env:
           BASE_URL: ${{ inputs.base_url || vars.ANDROID_MOBILE_BASE_URL || 'https://tv.987951.xyz' }}
           APP_NAME: ${{ inputs.app_name || vars.ANDROID_MOBILE_APP_NAME || 'MoonTVPlus' }}
-          VERSION_NAME: ${{ inputs.version_name || '1.0.1' }}
-          VERSION_CODE: ${{ inputs.version_code || '2' }}
-          ANDROID_KEYSTORE_PATH: /tmp/android-mobile-release.keystore
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          VERSION_NAME: ${{ inputs.version_name || '1.0.2' }}
+          VERSION_CODE: ${{ inputs.version_code || '3' }}
+          ANDROID_KEYSTORE_PATH: /tmp/android-mobile-release.p12
+          ANDROID_KEYSTORE_TYPE: PKCS12
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_MOBILE_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_MOBILE_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_MOBILE_KEY_PASSWORD }}
         run: |
           gradle assemble${{ steps.signing.outputs.build_type_task }} \
             -PBASE_URL="$BASE_URL" \
@@ -115,14 +117,14 @@ jobs:
           mkdir -p /tmp/android-mobile-apk
           cp \
             "apps/android-mobile/app/build/outputs/apk/${{ steps.signing.outputs.build_type }}/app-${{ steps.signing.outputs.apk_suffix }}.apk" \
-            "/tmp/android-mobile-apk/moontvplus-mobile-${{ inputs.version_name || '1.0.1' }}-${{ steps.signing.outputs.artifact_suffix }}.apk"
+            "/tmp/android-mobile-apk/moontvplus-mobile-${{ inputs.version_name || '1.0.2' }}-${{ steps.signing.outputs.artifact_suffix }}.apk"
           sha256sum /tmp/android-mobile-apk/*.apk > /tmp/android-mobile-apk/SHA256SUMS.txt
           ls -lh /tmp/android-mobile-apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: moontvplus-android-mobile-${{ inputs.version_name || '1.0.1' }}
+          name: moontvplus-android-mobile-${{ inputs.version_name || '1.0.2' }}
           path: /tmp/android-mobile-apk/*
           if-no-files-found: error
           retention-days: 30
