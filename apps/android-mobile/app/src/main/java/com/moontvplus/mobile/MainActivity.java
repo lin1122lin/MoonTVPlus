@@ -7,6 +7,7 @@ import android.app.DownloadManager;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
@@ -52,6 +53,9 @@ public class MainActivity extends Activity {
     private ValueCallback<Uri[]> fileChooserCallback;
     private PermissionRequest pendingPermissionRequest;
     private PendingDownload pendingDownload;
+    private int orientationBeforeFullscreen =
+            ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
+    private boolean fullscreenOrientationLocked;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -163,6 +167,7 @@ public class MainActivity extends Activity {
                     ViewGroup.LayoutParams.MATCH_PARENT
             ));
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            lockLandscapeForFullscreen();
             setImmersiveMode(true);
         }
 
@@ -480,6 +485,22 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void lockLandscapeForFullscreen() {
+        orientationBeforeFullscreen = getRequestedOrientation();
+        fullscreenOrientationLocked = true;
+        setRequestedOrientation(
+                ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        );
+    }
+
+    private void restoreOrientationAfterFullscreen() {
+        if (!fullscreenOrientationLocked) {
+            return;
+        }
+        fullscreenOrientationLocked = false;
+        setRequestedOrientation(orientationBeforeFullscreen);
+    }
+
     private void hideCustomView() {
         if (customView == null) {
             return;
@@ -490,6 +511,7 @@ public class MainActivity extends Activity {
         webView.setVisibility(View.VISIBLE);
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setImmersiveMode(false);
+        restoreOrientationAfterFullscreen();
         root.requestApplyInsets();
 
         if (customViewCallback != null) {
