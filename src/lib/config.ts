@@ -546,6 +546,9 @@ export function configSelfCheck(adminConfig: AdminConfig): AdminConfig {
       DefaultUserTags: [],
     };
   }
+  if (adminConfig.SiteConfig.SiteName === 'MoonTVPlus') {
+    adminConfig.SiteConfig.SiteName = 'LinTVPlus';
+  }
   // 确保弹幕配置存在
   if (adminConfig.SiteConfig.DanmakuSourceType === undefined) {
     adminConfig.SiteConfig.DanmakuSourceType = 'custom';
