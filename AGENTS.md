@@ -1,5 +1,7 @@
 # Repository Collaboration Notes
 
+- 面向用户的品牌名称统一使用 `LinTVPlus`；包名、数据库名、User-Agent 等兼容性标识未经迁移不得改名。
+
 - 默认使用中文沟通，回答简洁直接。
 - GitHub 发布目标是 `lin1122lin/MoonTVPlus`。除非用户明确要求，不要向上游
   `mtvpls/MoonTVPlus` 创建 PR。

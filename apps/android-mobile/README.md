@@ -1,6 +1,6 @@
 # LinTVPlus Android Mobile
 
-This module packages an existing MoonTVPlus deployment as a touch-first Android
+This module packages an existing LinTVPlus deployment as a touch-first Android
 WebView application. It loads the regular responsive site instead of the
 Android TV `/tv` route.
 
@@ -14,8 +14,8 @@ gradle assembleDebug \
   -PBASE_URL="https://example.com" \
   -PAPP_NAME="LinTVPlus" \
   -PUPDATE_REPOSITORY="lin1122lin/MoonTVPlus" \
-  -PVERSION_NAME="1.0.4" \
-  -PVERSION_CODE="5"
+  -PVERSION_NAME="1.0.5" \
+  -PVERSION_CODE="6"
 ```
 
 The debug APK is written to `app/build/outputs/apk/debug/app-debug.apk`.
@@ -42,7 +42,7 @@ files or credentials to this repository.
 
 ## In-app updates
 
-The app checks the following release asset at most once every six hours:
+The app checks the following release asset at most once every 15 minutes:
 
 ```text
 https://github.com/lin1122lin/MoonTVPlus/releases/latest/download/android-mobile-update.json

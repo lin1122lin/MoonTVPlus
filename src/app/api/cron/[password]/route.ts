@@ -604,7 +604,7 @@ async function refreshRecordAndFavorites() {
 
                 if (emailConfig?.enabled) {
                   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-                  const siteName = config?.SiteConfig?.SiteName || 'MoonTVPlus';
+                  const siteName = config?.SiteConfig?.SiteName || 'LinTVPlus';
 
                   await EmailService.send(emailConfig, {
                     to: userEmail,
@@ -751,7 +751,7 @@ async function refreshRecordAndFavorites() {
 
                 if (emailConfig?.enabled) {
                   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-                  const siteName = config?.SiteConfig?.SiteName || 'MoonTVPlus';
+                  const siteName = config?.SiteConfig?.SiteName || 'LinTVPlus';
 
                   await EmailService.send(emailConfig, {
                     to: userEmail,
@@ -840,4 +840,3 @@ async function refreshOpenList() {
     console.error('OpenList 定时扫描失败:', err);
   }
 }
-

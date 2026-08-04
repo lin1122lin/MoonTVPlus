@@ -48,7 +48,7 @@ final class UpdateManager {
     private static final String PREF_WAITING_INSTALL_PERMISSION =
             "waiting_install_permission";
 
-    private static final long CHECK_INTERVAL_MS = 6L * 60L * 60L * 1000L;
+    private static final long CHECK_INTERVAL_MS = 15L * 60L * 1000L;
     private static final int CONNECT_TIMEOUT_MS = 10_000;
     private static final int READ_TIMEOUT_MS = 15_000;
     private static final int MAX_MANIFEST_BYTES = 64 * 1024;
