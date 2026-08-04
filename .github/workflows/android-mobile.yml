@@ -173,7 +173,7 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.metadata.outputs.artifact_name }}
+          name: moontvplus-android-mobile-${{ steps.metadata.outputs.version_name }}
           path: /tmp/android-mobile-apk/*
           if-no-files-found: error
           retention-days: 30
