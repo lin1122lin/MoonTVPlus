@@ -491,9 +491,11 @@ final class UpdateManager {
         }
 
         Intent installIntent = new Intent(Intent.ACTION_VIEW)
-                .setDataAndType(apkUri, APK_MIME_TYPE)
-                .setClipData(ClipData.newRawUri("MoonTVPlus update", apkUri))
-                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                .setDataAndType(apkUri, APK_MIME_TYPE);
+        installIntent.setClipData(
+                ClipData.newRawUri("MoonTVPlus update", apkUri)
+        );
+        installIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         try {
             activity.startActivity(installIntent);
             clearPendingMetadata();
