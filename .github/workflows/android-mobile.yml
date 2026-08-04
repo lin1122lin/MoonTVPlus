@@ -24,12 +24,12 @@ on:
       version_name:
         description: 'Application version name'
         required: false
-        default: '1.0.5'
+        default: '1.0.6'
         type: string
       version_code:
         description: 'Positive integer application version code'
         required: false
-        default: '6'
+        default: '7'
         type: string
       publish_release:
         description: 'Publish a signed GitHub Release for in-app updates'
@@ -95,8 +95,8 @@ jobs:
           INPUT_VERSION_CODE: ${{ inputs.version_code }}
           INPUT_VERSION_NAME: ${{ inputs.version_name }}
         run: |
-          VERSION_NAME="${INPUT_VERSION_NAME:-1.0.5}"
-          VERSION_CODE="${INPUT_VERSION_CODE:-6}"
+          VERSION_NAME="${INPUT_VERSION_NAME:-1.0.6}"
+          VERSION_CODE="${INPUT_VERSION_CODE:-7}"
 
           if [[ ! "$VERSION_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
             echo "Invalid version name: $VERSION_NAME" >&2

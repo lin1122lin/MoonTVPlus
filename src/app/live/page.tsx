@@ -1934,6 +1934,8 @@ function LivePageClient() {
           targetUrl = `/api/proxy/m3u8?url=${encodeURIComponent(videoUrl)}&moontv-source=${currentSourceRef.current?.key || ''}`;
         }
       }
+      const isAndroidApp =
+        typeof (window as any).LinTVPlusAndroid?.openCastSettings === 'function';
 
       try {
         // 创建新的播放器实例
@@ -1963,13 +1965,26 @@ function LivePageClient() {
           mutex: true,
           playsInline: true,
           autoPlayback: false,
-          airplay: true,
+          airplay: !isAndroidApp,
           theme: '#22c55e',
           lang: 'zh-cn',
           hotkey: false,
           fastForward: false, // 直播不需要快进
           autoOrientation: true,
           lock: true,
+          controls: isAndroidApp
+            ? [
+                {
+                  position: 'right',
+                  index: 90,
+                  html: '<i class="art-icon flex"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M1 18v3h3a3 3 0 0 0-3-3Zm0-4v2a5 5 0 0 1 5 5h2a7 7 0 0 0-7-7Zm0-4v2a9 9 0 0 1 9 9h2c0-6.08-4.92-11-11-11Zm18-7H5a2 2 0 0 0-2 2v3h2V5h14v14h-5v2h5a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2Z"/></svg></i>',
+                  tooltip: '系统投屏',
+                  click: function () {
+                    (window as any).LinTVPlusAndroid.openCastSettings();
+                  },
+                },
+              ]
+            : [],
           moreVideoAttr: {
             crossOrigin: 'anonymous',
             preload: 'metadata',

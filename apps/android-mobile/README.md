@@ -14,8 +14,8 @@ gradle assembleDebug \
   -PBASE_URL="https://example.com" \
   -PAPP_NAME="LinTVPlus" \
   -PUPDATE_REPOSITORY="lin1122lin/MoonTVPlus" \
-  -PVERSION_NAME="1.0.5" \
-  -PVERSION_CODE="6"
+  -PVERSION_NAME="1.0.6" \
+  -PVERSION_CODE="7"
 ```
 
 The debug APK is written to `app/build/outputs/apk/debug/app-debug.apk`.
