@@ -10065,19 +10065,22 @@ function PlayPageClient() {
 
               </div>
 
-              {/* 第三方应用打开按钮 - 观影室同步状态下隐藏 */}
+              {/* 视频操作 - 观影室同步状态下隐藏 */}
               {videoUrl && !playSync.isInRoom && (
                 <div className='mt-3 px-2 lg:flex-shrink-0'>
-                  <div className='bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm rounded-lg p-2 border border-gray-200/50 dark:border-gray-700/50 w-full lg:w-auto overflow-x-auto'>
-                    <div className='flex gap-1.5 flex-nowrap lg:flex-wrap items-center'>
-                      <div className='flex gap-1.5 flex-nowrap lg:flex-wrap lg:justify-end lg:flex-1'>
+                  <div className='bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm rounded-lg p-2 border border-gray-200/50 dark:border-gray-700/50 w-full lg:w-auto'>
+                    <div
+                      className='grid grid-cols-3 gap-1.5 items-center lg:flex lg:flex-wrap lg:gap-2 lg:justify-end'
+                      role='toolbar'
+                      aria-label='视频操作'
+                    >
                         {/* 下载按钮 */}
                         <button
                           onClick={(e) => {
                             e.preventDefault();
                             setShowDownloadSelector(true);
                           }}
-                          className='group relative flex items-center justify-center gap-1 w-8 h-8 lg:w-auto lg:h-auto lg:px-2 lg:py-1.5 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-xs font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer overflow-hidden border border-green-400 flex-shrink-0'
+                          className='group relative flex h-9 w-full min-w-0 items-center justify-center gap-1 px-2 lg:h-auto lg:w-auto lg:px-2 lg:py-1.5 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-xs font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer overflow-hidden border border-green-400 flex-shrink-0'
                           title='下载视频'
                         >
                           <svg
@@ -10093,7 +10096,7 @@ function PlayPageClient() {
                               d='M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4'
                             />
                           </svg>
-                          <span className='hidden lg:inline max-w-0 group-hover:max-w-[100px] overflow-hidden whitespace-nowrap transition-all duration-200 ease-in-out text-white'>
+                          <span className='inline overflow-hidden whitespace-nowrap transition-all duration-200 ease-in-out text-white lg:max-w-0 lg:group-hover:max-w-[100px]'>
                             下载
                           </span>
                         </button>
@@ -10135,7 +10138,7 @@ function PlayPageClient() {
                               });
                             });
                           }}
-                          className='group relative flex items-center justify-center gap-1 w-8 h-8 lg:w-auto lg:h-auto lg:px-2 lg:py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer overflow-hidden border border-blue-400 flex-shrink-0'
+                          className='group relative flex h-9 w-full min-w-0 items-center justify-center gap-1 px-2 lg:h-auto lg:w-auto lg:px-2 lg:py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer overflow-hidden border border-blue-400 flex-shrink-0'
                           title='复制视频链接'
                         >
                           <svg
@@ -10151,7 +10154,7 @@ function PlayPageClient() {
                               d='M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z'
                             />
                           </svg>
-                          <span className='hidden lg:inline max-w-0 group-hover:max-w-[100px] overflow-hidden whitespace-nowrap transition-all duration-200 ease-in-out text-white'>
+                          <span className='inline overflow-hidden whitespace-nowrap transition-all duration-200 ease-in-out text-white lg:max-w-0 lg:group-hover:max-w-[100px]'>
                             复制链接
                           </span>
                         </button>
@@ -10165,7 +10168,7 @@ function PlayPageClient() {
                             // 打开moontvplus协议
                             window.open(`moontvplus://${currentPath}`, '_blank');
                           }}
-                          className='group relative flex items-center justify-center gap-1 w-8 h-8 lg:w-auto lg:h-auto lg:px-2 lg:py-1.5 bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-xs font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer overflow-hidden border border-blue-600 dark:border-blue-700 flex-shrink-0'
+                          className='group relative hidden items-center justify-center gap-1 w-8 h-8 lg:flex lg:w-auto lg:h-auto lg:px-2 lg:py-1.5 bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-xs font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer overflow-hidden border border-blue-600 dark:border-blue-700 flex-shrink-0'
                           title='App打开'
                         >
                           <svg
@@ -10194,7 +10197,7 @@ function PlayPageClient() {
                               await handleCreateTranscodeSession();
                             }}
                             disabled={isTranscoding}
-                            className={`group relative flex items-center justify-center gap-1 w-8 h-8 lg:w-auto lg:h-auto lg:px-2 lg:py-1.5 text-xs font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md overflow-hidden border flex-shrink-0 ${
+                            className={`group relative flex h-9 w-full min-w-0 items-center justify-center gap-1 px-2 lg:h-auto lg:w-auto lg:px-2 lg:py-1.5 text-xs font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md overflow-hidden border flex-shrink-0 ${
                               isTranscoding
                                 ? 'bg-amber-400 text-white border-amber-400 cursor-wait'
                                 : 'bg-amber-500 hover:bg-amber-600 text-white border-amber-500 cursor-pointer'
@@ -10206,7 +10209,7 @@ function PlayPageClient() {
                             ) : (
                               <Router className='w-4 h-4 flex-shrink-0 text-white' />
                             )}
-                            <span className='hidden lg:inline max-w-0 group-hover:max-w-[100px] overflow-hidden whitespace-nowrap transition-all duration-200 ease-in-out text-white'>
+                            <span className='inline overflow-hidden whitespace-nowrap transition-all duration-200 ease-in-out text-white lg:max-w-0 lg:group-hover:max-w-[100px]'>
                               {isTranscoding ? '转码中' : '转码'}
                             </span>
                           </button>
@@ -10218,7 +10221,7 @@ function PlayPageClient() {
                             e.preventDefault();
                             setShowShortcutDialog(true);
                           }}
-                          className='group relative flex items-center justify-center gap-1 w-8 h-8 lg:w-auto lg:h-auto lg:px-2 lg:py-1.5 bg-gray-200 hover:bg-gray-300 dark:bg-gray-500 dark:hover:bg-gray-400 text-xs font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer overflow-hidden border border-gray-300 dark:border-gray-500 flex-shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950'
+                          className='group relative hidden items-center justify-center gap-1 w-8 h-8 lg:flex lg:w-auto lg:h-auto lg:px-2 lg:py-1.5 bg-gray-200 hover:bg-gray-300 dark:bg-gray-500 dark:hover:bg-gray-400 text-xs font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer overflow-hidden border border-gray-300 dark:border-gray-500 flex-shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950'
                           title='快捷键说明'
                           aria-label='查看播放快捷键说明'
                         >
@@ -10245,7 +10248,7 @@ function PlayPageClient() {
                             // URL encode 避免冒号被吃掉
                             window.open(`potplayer://${proxyUrl}`, '_blank');
                           }}
-                          className='group relative flex items-center justify-center gap-1 w-8 h-8 lg:w-auto lg:h-auto lg:px-2 lg:py-1.5 bg-white hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-xs font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer overflow-hidden border border-gray-300 dark:border-gray-600 flex-shrink-0'
+                          className='group relative hidden items-center justify-center gap-1 w-8 h-8 lg:flex lg:w-auto lg:h-auto lg:px-2 lg:py-1.5 bg-white hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-xs font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer overflow-hidden border border-gray-300 dark:border-gray-600 flex-shrink-0'
                           title='PotPlayer'
                         >
                           <img
@@ -10275,7 +10278,7 @@ function PlayPageClient() {
                             // URL encode 避免冒号被吃掉
                             window.open(`vlc://${proxyUrl}`, '_blank');
                           }}
-                          className='group relative flex items-center justify-center gap-1 w-8 h-8 lg:w-auto lg:h-auto lg:px-2 lg:py-1.5 bg-white hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-xs font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer overflow-hidden border border-gray-300 dark:border-gray-600 flex-shrink-0'
+                          className='group relative flex h-9 w-full min-w-0 items-center justify-center gap-1 px-2 lg:h-auto lg:w-auto lg:px-2 lg:py-1.5 bg-white hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-xs font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer overflow-hidden border border-gray-300 dark:border-gray-600 flex-shrink-0'
                           title='VLC'
                         >
                           <img
@@ -10283,7 +10286,7 @@ function PlayPageClient() {
                             alt='VLC'
                             className='w-4 h-4 flex-shrink-0'
                           />
-                          <span className='hidden lg:inline max-w-0 group-hover:max-w-[100px] overflow-hidden whitespace-nowrap transition-all duration-200 ease-in-out text-gray-700 dark:text-gray-200'>
+                          <span className='inline overflow-hidden whitespace-nowrap transition-all duration-200 ease-in-out text-gray-700 dark:text-gray-200 lg:max-w-0 lg:group-hover:max-w-[100px]'>
                             VLC
                           </span>
                         </button>
@@ -10305,7 +10308,7 @@ function PlayPageClient() {
                             // URL encode 避免冒号被吃掉
                             window.open(`mpv://${proxyUrl}`, '_blank');
                           }}
-                          className='group relative flex items-center justify-center gap-1 w-8 h-8 lg:w-auto lg:h-auto lg:px-2 lg:py-1.5 bg-white hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-xs font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer overflow-hidden border border-gray-300 dark:border-gray-600 flex-shrink-0'
+                          className='group relative hidden items-center justify-center gap-1 w-8 h-8 lg:flex lg:w-auto lg:h-auto lg:px-2 lg:py-1.5 bg-white hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-xs font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer overflow-hidden border border-gray-300 dark:border-gray-600 flex-shrink-0'
                           title='MPV'
                         >
                           <img
@@ -10339,7 +10342,7 @@ function PlayPageClient() {
                               '_blank'
                             );
                           }}
-                          className='group relative flex items-center justify-center gap-1 w-8 h-8 lg:w-auto lg:h-auto lg:px-2 lg:py-1.5 bg-white hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-xs font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer overflow-hidden border border-gray-300 dark:border-gray-600 flex-shrink-0'
+                          className='group relative flex h-9 w-full min-w-0 items-center justify-center gap-1 px-2 lg:h-auto lg:w-auto lg:px-2 lg:py-1.5 bg-white hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-xs font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer overflow-hidden border border-gray-300 dark:border-gray-600 flex-shrink-0'
                           title='MX Player'
                         >
                           <img
@@ -10347,8 +10350,8 @@ function PlayPageClient() {
                             alt='MX Player'
                             className='w-4 h-4 flex-shrink-0'
                           />
-                          <span className='hidden lg:inline max-w-0 group-hover:max-w-[100px] overflow-hidden whitespace-nowrap transition-all duration-200 ease-in-out text-gray-700 dark:text-gray-200'>
-                            MX Player
+                          <span className='inline overflow-hidden whitespace-nowrap transition-all duration-200 ease-in-out text-gray-700 dark:text-gray-200 lg:max-w-0 lg:group-hover:max-w-[100px]'>
+                            MX 播放
                           </span>
                         </button>
 
@@ -10368,7 +10371,7 @@ function PlayPageClient() {
                               : urlToUse;
                             window.open(`nplayer-${proxyUrl}`, '_blank');
                           }}
-                          className='group relative flex items-center justify-center gap-1 w-8 h-8 lg:w-auto lg:h-auto lg:px-2 lg:py-1.5 bg-white hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-xs font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer overflow-hidden border border-gray-300 dark:border-gray-600 flex-shrink-0'
+                          className='group relative flex h-9 w-full min-w-0 items-center justify-center gap-1 px-2 lg:h-auto lg:w-auto lg:px-2 lg:py-1.5 bg-white hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-xs font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer overflow-hidden border border-gray-300 dark:border-gray-600 flex-shrink-0'
                           title='nPlayer'
                         >
                           <img
@@ -10376,7 +10379,7 @@ function PlayPageClient() {
                             alt='nPlayer'
                             className='w-4 h-4 flex-shrink-0'
                           />
-                          <span className='hidden lg:inline max-w-0 group-hover:max-w-[100px] overflow-hidden whitespace-nowrap transition-all duration-200 ease-in-out text-gray-700 dark:text-gray-200'>
+                          <span className='inline overflow-hidden whitespace-nowrap transition-all duration-200 ease-in-out text-gray-700 dark:text-gray-200 lg:max-w-0 lg:group-hover:max-w-[100px]'>
                             nPlayer
                           </span>
                         </button>
@@ -10402,7 +10405,7 @@ function PlayPageClient() {
                               '_blank'
                             );
                           }}
-                          className='group relative flex items-center justify-center gap-1 w-8 h-8 lg:w-auto lg:h-auto lg:px-2 lg:py-1.5 bg-white hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-xs font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer overflow-hidden border border-gray-300 dark:border-gray-600 flex-shrink-0'
+                          className='group relative hidden items-center justify-center gap-1 w-8 h-8 lg:flex lg:w-auto lg:h-auto lg:px-2 lg:py-1.5 bg-white hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-xs font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer overflow-hidden border border-gray-300 dark:border-gray-600 flex-shrink-0'
                           title='IINA'
                         >
                           <img
@@ -10414,12 +10417,11 @@ function PlayPageClient() {
                             IINA
                           </span>
                         </button>
-                      </div>
 
                       {/* 去广告开关 */}
                       <button
                         onClick={() => setExternalPlayerAdBlock(!externalPlayerAdBlock)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer border flex-shrink-0 ${externalPlayerAdBlock
+                        className={`flex h-9 w-full min-w-0 items-center justify-center gap-1 px-1 lg:h-auto lg:w-auto lg:gap-1.5 lg:px-3 lg:py-1.5 rounded-md text-xs font-medium transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer border flex-shrink-0 ${externalPlayerAdBlock
                           ? 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white border-blue-400'
                           : 'bg-white hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600'
                           }`}
@@ -10448,7 +10450,7 @@ function PlayPageClient() {
                           )}
                         </svg>
                         <span className='whitespace-nowrap'>
-                          {externalPlayerAdBlock ? '去广告' : '去广告'}
+                          {externalPlayerAdBlock ? '去广告：开' : '去广告：关'}
                         </span>
                       </button>
                     </div>
