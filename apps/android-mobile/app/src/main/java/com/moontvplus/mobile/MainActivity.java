@@ -53,6 +53,7 @@ public class MainActivity extends Activity {
     private ValueCallback<Uri[]> fileChooserCallback;
     private PermissionRequest pendingPermissionRequest;
     private PendingDownload pendingDownload;
+    private UpdateManager updateManager;
     private int orientationBeforeFullscreen =
             ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
     private boolean fullscreenOrientationLocked;
@@ -69,6 +70,8 @@ public class MainActivity extends Activity {
         setContentView(root);
         installSystemBarInsets();
         setupWebView();
+        updateManager = new UpdateManager(this);
+        updateManager.start();
 
         if (savedInstanceState == null || webView.restoreState(savedInstanceState) == null) {
             webView.loadUrl(normalizeBaseUrl(BuildConfig.BASE_URL));
@@ -600,10 +603,16 @@ public class MainActivity extends Activity {
         if (webView != null) {
             webView.onResume();
         }
+        if (updateManager != null) {
+            updateManager.onResume();
+        }
     }
 
     @Override
     protected void onPause() {
+        if (updateManager != null) {
+            updateManager.onPause();
+        }
         if (webView != null) {
             webView.onPause();
         }
@@ -612,6 +621,10 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        if (updateManager != null) {
+            updateManager.stop();
+            updateManager = null;
+        }
         if (fileChooserCallback != null) {
             fileChooserCallback.onReceiveValue(null);
             fileChooserCallback = null;

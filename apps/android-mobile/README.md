@@ -13,8 +13,9 @@ cd apps/android-mobile
 gradle assembleDebug \
   -PBASE_URL="https://example.com" \
   -PAPP_NAME="MoonTVPlus" \
-  -PVERSION_NAME="1.0.2" \
-  -PVERSION_CODE="3"
+  -PUPDATE_REPOSITORY="lin1122lin/MoonTVPlus" \
+  -PVERSION_NAME="1.0.3" \
+  -PVERSION_CODE="4"
 ```
 
 The debug APK is written to `app/build/outputs/apk/debug/app-debug.apk`.
@@ -33,3 +34,35 @@ repository secrets:
 
 Keep the original keystore and passwords outside GitHub. Every update must use
 the same application ID and signing key, and `VERSION_CODE` must increase.
+
+GitHub Secrets cannot be read back after they are saved, so they are not a
+keystore backup. Keep at least two private copies of the original `.p12` file
+and store its alias and passwords in a password manager. Never commit signing
+files or credentials to this repository.
+
+## In-app updates
+
+The app checks the following release asset at most once every six hours:
+
+```text
+https://github.com/lin1122lin/MoonTVPlus/releases/latest/download/android-mobile-update.json
+```
+
+When a newer `versionCode` is available, the app shows an update dialog,
+downloads the APK with Android `DownloadManager`, and verifies its SHA-256,
+package name, version code, and signing certificate before opening the system
+package installer. Android 8 and newer require the user to allow MoonTVPlus as
+an install source once. The final installation confirmation is always handled
+by Android.
+
+To publish an update, manually run the `Build Android Mobile APK` workflow and:
+
+1. Increase both `version_name` and `version_code`.
+2. Enable `publish_release`.
+3. Enter the release notes shown to users.
+4. Leave `mandatory_update` disabled unless the old version must be blocked.
+
+The workflow requires all four signing secrets. It creates an
+`android-mobile-v<version>` GitHub Release containing the signed APK,
+`SHA256SUMS.txt`, and `android-mobile-update.json`, and marks that release as
+the latest Android update.

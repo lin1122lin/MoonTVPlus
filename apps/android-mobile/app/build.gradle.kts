@@ -15,8 +15,18 @@ val applicationIdValue = propOrEnv(
     "APPLICATION_ID",
     "com.moontvplus.mobile"
 )
-val versionNameValue = propOrEnv("VERSION_NAME", "VERSION_NAME", "1.0.2")
-val versionCodeValue = propOrEnv("VERSION_CODE", "VERSION_CODE", "3").toIntOrNull() ?: 3
+val updateRepository = propOrEnv(
+    "UPDATE_REPOSITORY",
+    "UPDATE_REPOSITORY",
+    "lin1122lin/MoonTVPlus"
+)
+val updateManifestUrl = propOrEnv(
+    "UPDATE_MANIFEST_URL",
+    "UPDATE_MANIFEST_URL",
+    "https://github.com/$updateRepository/releases/latest/download/android-mobile-update.json"
+)
+val versionNameValue = propOrEnv("VERSION_NAME", "VERSION_NAME", "1.0.3")
+val versionCodeValue = propOrEnv("VERSION_CODE", "VERSION_CODE", "4").toIntOrNull() ?: 4
 val minSdkValue = propOrEnv("MIN_SDK", "MIN_SDK", "23").toIntOrNull() ?: 23
 
 fun escapeJavaString(value: String): String = value
@@ -42,6 +52,16 @@ android {
         versionName = versionNameValue
 
         buildConfigField("String", "BASE_URL", "\"${escapeJavaString(rawBaseUrl)}\"")
+        buildConfigField(
+            "String",
+            "UPDATE_MANIFEST_URL",
+            "\"${escapeJavaString(updateManifestUrl)}\""
+        )
+        buildConfigField(
+            "String",
+            "UPDATE_REPOSITORY",
+            "\"${escapeJavaString(updateRepository)}\""
+        )
         resValue("string", "app_name", escapeXmlString(appDisplayName))
     }
 
