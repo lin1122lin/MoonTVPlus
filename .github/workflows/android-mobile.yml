@@ -1,0 +1,271 @@
+name: Build Android Mobile APK
+
+on:
+  push:
+    branches:
+      - main
+      - feat/pwa-android
+    paths:
+      - '.github/workflows/android-mobile.yml'
+      - 'apps/android-mobile/**'
+      - 'public/logo.png'
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'LinTVPlus base URL'
+        required: true
+        default: 'https://tv.987951.xyz'
+        type: string
+      app_name:
+        description: 'Android application name'
+        required: true
+        default: 'LinTVPlus'
+        type: string
+      version_name:
+        description: 'Application version name'
+        required: false
+        default: '1.0.5'
+        type: string
+      version_code:
+        description: 'Positive integer application version code'
+        required: false
+        default: '6'
+        type: string
+      publish_release:
+        description: 'Publish a signed GitHub Release for in-app updates'
+        required: true
+        default: false
+        type: boolean
+      release_notes:
+        description: 'Release notes shown in the Android update dialog'
+        required: false
+        default: '加入应用内更新检查、下载校验和安装流程。'
+        type: string
+      mandatory_update:
+        description: 'Prevent dismissing the in-app update dialog'
+        required: true
+        default: false
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build:
+    name: Build Android Mobile APK
+    runs-on: ubuntu-latest
+    outputs:
+      version_code: ${{ steps.metadata.outputs.version_code }}
+      version_name: ${{ steps.metadata.outputs.version_name }}
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Prepare Android icon
+        run: |
+          cp public/logo.png apps/android-mobile/app/src/main/res/drawable/logo.png
+
+      - name: Resolve build metadata
+        id: metadata
+        env:
+          INPUT_VERSION_CODE: ${{ inputs.version_code }}
+          INPUT_VERSION_NAME: ${{ inputs.version_name }}
+        run: |
+          VERSION_NAME="${INPUT_VERSION_NAME:-1.0.5}"
+          VERSION_CODE="${INPUT_VERSION_CODE:-6}"
+
+          if [[ ! "$VERSION_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid version name: $VERSION_NAME" >&2
+            exit 1
+          fi
+          if [[ ! "$VERSION_CODE" =~ ^[1-9][0-9]*$ ]]; then
+            echo "Invalid version code: $VERSION_CODE" >&2
+            exit 1
+          fi
+
+          echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+
+      - name: Decode Android signing keystore
+        id: signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_MOBILE_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_MOBILE_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_MOBILE_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_MOBILE_KEY_PASSWORD }}
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ -n "$ANDROID_KEYSTORE_PASSWORD" ] && [ -n "$ANDROID_KEY_ALIAS" ] && [ -n "$ANDROID_KEY_PASSWORD" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > /tmp/android-mobile-release.p12
+            echo "build_type=release" >> "$GITHUB_OUTPUT"
+            echo "build_type_task=Release" >> "$GITHUB_OUTPUT"
+            echo "apk_suffix=release" >> "$GITHUB_OUTPUT"
+            echo "artifact_suffix=release-signed" >> "$GITHUB_OUTPUT"
+          else
+            echo "Android signing secrets are incomplete; building a debug APK."
+            echo "build_type=debug" >> "$GITHUB_OUTPUT"
+            echo "build_type_task=Debug" >> "$GITHUB_OUTPUT"
+            echo "apk_suffix=debug" >> "$GITHUB_OUTPUT"
+            echo "artifact_suffix=debug" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Require signing for published releases
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_release && steps.signing.outputs.build_type != 'release'
+        run: |
+          echo "A published Android release requires all signing secrets." >&2
+          exit 1
+
+      - name: Build APK
+        working-directory: apps/android-mobile
+        env:
+          BASE_URL: ${{ inputs.base_url || vars.ANDROID_MOBILE_BASE_URL || 'https://tv.987951.xyz' }}
+          APP_NAME: ${{ inputs.app_name || vars.ANDROID_MOBILE_APP_NAME || 'LinTVPlus' }}
+          UPDATE_REPOSITORY: ${{ github.repository }}
+          VERSION_NAME: ${{ steps.metadata.outputs.version_name }}
+          VERSION_CODE: ${{ steps.metadata.outputs.version_code }}
+          ANDROID_KEYSTORE_PATH: /tmp/android-mobile-release.p12
+          ANDROID_KEYSTORE_TYPE: PKCS12
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_MOBILE_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_MOBILE_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_MOBILE_KEY_PASSWORD }}
+        run: |
+          gradle assemble${{ steps.signing.outputs.build_type_task }} \
+            -PBASE_URL="$BASE_URL" \
+            -PAPP_NAME="$APP_NAME" \
+            -PUPDATE_REPOSITORY="$UPDATE_REPOSITORY" \
+            -PVERSION_NAME="$VERSION_NAME" \
+            -PVERSION_CODE="$VERSION_CODE"
+
+      - name: Collect APK artifact
+        run: |
+          mkdir -p /tmp/android-mobile-apk
+          cp \
+            "apps/android-mobile/app/build/outputs/apk/${{ steps.signing.outputs.build_type }}/app-${{ steps.signing.outputs.apk_suffix }}.apk" \
+            "/tmp/android-mobile-apk/moontvplus-mobile-${{ steps.metadata.outputs.version_name }}-${{ steps.signing.outputs.artifact_suffix }}.apk"
+          pushd /tmp/android-mobile-apk
+          sha256sum *.apk > SHA256SUMS.txt
+          popd
+          ls -lh /tmp/android-mobile-apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: moontvplus-android-mobile-${{ steps.metadata.outputs.version_name }}
+          path: /tmp/android-mobile-apk/*
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: Publish Android Mobile Release
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+
+    steps:
+      - name: Download signed APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: moontvplus-android-mobile-${{ needs.build.outputs.version_name }}
+          path: /tmp/android-mobile-release
+
+      - name: Generate update manifest
+        id: release
+        env:
+          MANDATORY_UPDATE: ${{ inputs.mandatory_update }}
+          RELEASE_NOTES: ${{ inputs.release_notes }}
+          VERSION_CODE: ${{ needs.build.outputs.version_code }}
+          VERSION_NAME: ${{ needs.build.outputs.version_name }}
+        run: |
+          APK_NAME="moontvplus-mobile-${VERSION_NAME}-release-signed.apk"
+          APK_PATH="/tmp/android-mobile-release/$APK_NAME"
+          CHECKSUM_PATH="/tmp/android-mobile-release/SHA256SUMS.txt"
+          MANIFEST_PATH="/tmp/android-mobile-release/android-mobile-update.json"
+          RELEASE_NOTES_PATH="/tmp/android-mobile-release/RELEASE_NOTES.md"
+          TAG="android-mobile-v${VERSION_NAME}"
+
+          test -f "$APK_PATH"
+          test -f "$CHECKSUM_PATH"
+          SHA256="$(sha256sum "$APK_PATH" | cut -d ' ' -f 1)"
+          APK_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${APK_NAME}"
+
+          jq -n \
+            --argjson versionCode "$VERSION_CODE" \
+            --arg versionName "$VERSION_NAME" \
+            --arg apkUrl "$APK_URL" \
+            --arg sha256 "$SHA256" \
+            --arg notes "$RELEASE_NOTES" \
+            --argjson mandatory "$MANDATORY_UPDATE" \
+            '{
+              versionCode: $versionCode,
+              versionName: $versionName,
+              apkUrl: $apkUrl,
+              sha256: $sha256,
+              notes: $notes,
+              mandatory: $mandatory
+            }' > "$MANIFEST_PATH"
+
+          printf '%s\n\n' "$RELEASE_NOTES" > "$RELEASE_NOTES_PATH"
+          printf -- '- Version code: `%s`\n- APK SHA-256: `%s`\n' \
+            "$VERSION_CODE" "$SHA256" >> "$RELEASE_NOTES_PATH"
+
+          echo "apk_path=$APK_PATH" >> "$GITHUB_OUTPUT"
+          echo "checksum_path=$CHECKSUM_PATH" >> "$GITHUB_OUTPUT"
+          echo "manifest_path=$MANIFEST_PATH" >> "$GITHUB_OUTPUT"
+          echo "notes_path=$RELEASE_NOTES_PATH" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION_NAME: ${{ needs.build.outputs.version_name }}
+        run: |
+          TAG="${{ steps.release.outputs.tag }}"
+          ASSETS=(
+            "${{ steps.release.outputs.apk_path }}"
+            "${{ steps.release.outputs.checksum_path }}"
+            "${{ steps.release.outputs.manifest_path }}"
+          )
+
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${ASSETS[@]}" \
+              --clobber \
+              --repo "$GITHUB_REPOSITORY"
+            gh release edit "$TAG" \
+              --latest \
+              --notes-file "${{ steps.release.outputs.notes_path }}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "LinTVPlus Android $VERSION_NAME"
+          else
+            gh release create "$TAG" "${ASSETS[@]}" \
+              --latest \
+              --notes-file "${{ steps.release.outputs.notes_path }}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "LinTVPlus Android $VERSION_NAME"
+          fi

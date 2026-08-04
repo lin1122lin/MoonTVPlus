@@ -108,7 +108,7 @@ function getRequestSiteOrigin(request: NextRequest): string {
 }
 
 /**
- * MoonTVPlus APP / OrionTV 客户端：对配置的视频源 m3u8 套一层去广告代理。
+ * LinTVPlus APP / OrionTV 客户端：对配置的视频源 m3u8 套一层去广告代理。
  * UA 小写包含 "moontvplus app" 或 "oriontv" 时生效（不匹配仅含 moontvplus 的其它客户端）。
  */
 function applyClientAdProxyToEpisodes(

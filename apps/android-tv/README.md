@@ -1,6 +1,6 @@
-# MoonTVPlus Android TV
+# LinTVPlus Android TV
 
-这是一个极简 Android TV WebView 壳工程，用于打开 MoonTVPlus Web TV 页面。
+这是一个极简 Android TV WebView 壳工程，用于打开 LinTVPlus Web TV 页面。
 
 ## 构建参数
 

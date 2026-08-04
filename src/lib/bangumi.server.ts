@@ -38,7 +38,7 @@ export async function fetchBangumiFromServer(
     return fetch(url, {
       headers: {
         Accept: 'application/json',
-        'User-Agent': 'MoonTVPlus/1.0 (https://github.com)',
+        'User-Agent': 'LinTVPlus/1.0 (https://github.com)',
       },
       signal: AbortSignal.timeout(15000),
     }) as Promise<Response>;
@@ -47,7 +47,7 @@ export async function fetchBangumiFromServer(
   const fetchOptions: any = {
     headers: {
       Accept: 'application/json',
-      'User-Agent': 'MoonTVPlus/1.0 (https://github.com)',
+      'User-Agent': 'LinTVPlus/1.0 (https://github.com)',
     },
     signal: AbortSignal.timeout(proxy ? 30000 : 15000),
   };

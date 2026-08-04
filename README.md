@@ -1,12 +1,12 @@
-# MoonTVPlus
+# LinTVPlus
 
 <div align="center">
-  <img src="public/logo.png" alt="MoonTVPlus Logo" width="120">
+  <img src="public/logo.png" alt="LinTVPlus Logo" width="120">
 </div>
 
 ## ⚠️ 请某些人停止你的抄袭行为，不要我上什么功能你就抄什么，借鉴≠抄袭
 
-> 🎬 **MoonTVPlus** 是基于 [MoonTV v100](https://github.com/MoonTechLab/LunaTV) 二次开发的增强版影视聚合播放器。它在原版基础上新增了外部播放器支持、视频超分、弹幕系统、评论抓取等实用功能，提供更强大的观影体验。
+> 🎬 **LinTVPlus** 是基于 [MoonTV v100](https://github.com/MoonTechLab/LunaTV) 二次开发的增强版影视聚合播放器。它在原版基础上新增了外部播放器支持、视频超分、弹幕系统、评论抓取等实用功能，提供更强大的观影体验。
 
 <div align="center">
 
@@ -469,7 +469,7 @@ dockge/komodo 等 docker compose UI 也有自动更新功能
 | CRON_WAIT_FOR_COMPLETION                 | 定时任务接口是否等待任务完全结束后再返回响应（true 时返回 200，false 时立即返回 202）。部署在 serverless 平台（如 Vercel）时建议设置为 true，否则响应返回后异步执行可能会被平台杀后台导致任务中断 | true/false                  | false                                                        |
 | CRON_USER_BATCH_SIZE                     | 定时任务用户批处理大小（控制并发处理的用户数量，影响播放记录和收藏更新任务的并发性能） | 正整数                      | 3                                                            |
 | SITE_BASE                                | 站点 url                                                     | 形如 https://example.com    | 空                                                           |
-| NEXT_PUBLIC_SITE_NAME                    | 站点名称                                                     | 任意字符串                  | MoonTV                                                       |
+| NEXT_PUBLIC_SITE_NAME                    | 站点名称                                                     | 任意字符串                  | LinTVPlus                                                    |
 | ANNOUNCEMENT                             | 站点公告                                                     | 任意字符串                  | 本网站仅提供影视信息搜索服务，所有内容均来自第三方网站。本站不存储任何视频资源，不对任何内容的准确性、合法性、完整性负责。 |
 | ANNOUNCEMENT_DISPLAY_MODE                | 公告显示模式                                                 | once、every                 | once                                                        |
 | NEXT_PUBLIC_STORAGE_TYPE                 | 播放记录/收藏的存储方式                                      | redis、kvrocks、upstash、d1、turso、postgres | 无默认，必填字段                                             |
@@ -573,7 +573,7 @@ NEXT_PUBLIC_VOICE_CHAT_STRATEGY 选项解释：
 
 1. 按照 [watch-room-server](https://github.com/tgs9915/watch-room-server) 的文档部署外部服务器
 
-2. 在 MoonTVPlus 中设置以下环境变量：
+2. 在 LinTVPlus 中设置以下环境变量：
 
    ```env
    WATCH_ROOM_ENABLED=true
