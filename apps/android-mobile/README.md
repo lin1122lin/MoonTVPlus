@@ -1,4 +1,4 @@
-# MoonTVPlus Android Mobile
+# LinTVPlus Android Mobile
 
 This module packages an existing MoonTVPlus deployment as a touch-first Android
 WebView application. It loads the regular responsive site instead of the
@@ -12,10 +12,10 @@ Java 17, Android SDK 35, and Gradle 8.10.2 are required.
 cd apps/android-mobile
 gradle assembleDebug \
   -PBASE_URL="https://example.com" \
-  -PAPP_NAME="MoonTVPlus" \
+  -PAPP_NAME="LinTVPlus" \
   -PUPDATE_REPOSITORY="lin1122lin/MoonTVPlus" \
-  -PVERSION_NAME="1.0.3" \
-  -PVERSION_CODE="4"
+  -PVERSION_NAME="1.0.4" \
+  -PVERSION_CODE="5"
 ```
 
 The debug APK is written to `app/build/outputs/apk/debug/app-debug.apk`.
@@ -51,7 +51,7 @@ https://github.com/lin1122lin/MoonTVPlus/releases/latest/download/android-mobile
 When a newer `versionCode` is available, the app shows an update dialog,
 downloads the APK with Android `DownloadManager`, and verifies its SHA-256,
 package name, version code, and signing certificate before opening the system
-package installer. Android 8 and newer require the user to allow MoonTVPlus as
+package installer. Android 8 and newer require the user to allow LinTVPlus as
 an install source once. The final installation confirmation is always handled
 by Android.
 

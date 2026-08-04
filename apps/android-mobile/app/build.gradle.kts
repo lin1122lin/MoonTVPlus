@@ -9,7 +9,7 @@ fun propOrEnv(propName: String, envName: String, defaultValue: String): String {
 }
 
 val rawBaseUrl = propOrEnv("BASE_URL", "BASE_URL", "https://tv.987951.xyz")
-val appDisplayName = propOrEnv("APP_NAME", "APP_NAME", "MoonTVPlus")
+val appDisplayName = propOrEnv("APP_NAME", "APP_NAME", "LinTVPlus")
 val applicationIdValue = propOrEnv(
     "APPLICATION_ID",
     "APPLICATION_ID",
@@ -25,8 +25,8 @@ val updateManifestUrl = propOrEnv(
     "UPDATE_MANIFEST_URL",
     "https://github.com/$updateRepository/releases/latest/download/android-mobile-update.json"
 )
-val versionNameValue = propOrEnv("VERSION_NAME", "VERSION_NAME", "1.0.3")
-val versionCodeValue = propOrEnv("VERSION_CODE", "VERSION_CODE", "4").toIntOrNull() ?: 4
+val versionNameValue = propOrEnv("VERSION_NAME", "VERSION_NAME", "1.0.4")
+val versionCodeValue = propOrEnv("VERSION_CODE", "VERSION_CODE", "5").toIntOrNull() ?: 5
 val minSdkValue = propOrEnv("MIN_SDK", "MIN_SDK", "23").toIntOrNull() ?: 23
 
 fun escapeJavaString(value: String): String = value

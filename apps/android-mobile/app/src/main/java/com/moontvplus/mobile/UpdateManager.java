@@ -337,7 +337,7 @@ final class UpdateManager {
         DownloadManager.Request request = new DownloadManager.Request(
                 Uri.parse(update.apkUrl)
         );
-        request.setTitle("MoonTVPlus " + update.versionName);
+        request.setTitle("LinTVPlus " + update.versionName);
         request.setDescription("正在下载应用更新");
         request.setMimeType(APK_MIME_TYPE);
         request.setAllowedOverMetered(true);
@@ -493,7 +493,7 @@ final class UpdateManager {
         Intent installIntent = new Intent(Intent.ACTION_VIEW)
                 .setDataAndType(apkUri, APK_MIME_TYPE);
         installIntent.setClipData(
-                ClipData.newRawUri("MoonTVPlus update", apkUri)
+                ClipData.newRawUri("LinTVPlus update", apkUri)
         );
         installIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         try {
@@ -519,7 +519,7 @@ final class UpdateManager {
 
         installPermissionDialog = new AlertDialog.Builder(activity)
                 .setTitle("需要安装权限")
-                .setMessage("请在系统设置中允许 MoonTVPlus 安装未知应用，返回后会继续安装。")
+                .setMessage("请在系统设置中允许 LinTVPlus 安装未知应用，返回后会继续安装。")
                 .setPositiveButton("打开设置", (dialog, which) -> {
                     preferences.edit()
                             .putBoolean(PREF_WAITING_INSTALL_PERMISSION, true)
