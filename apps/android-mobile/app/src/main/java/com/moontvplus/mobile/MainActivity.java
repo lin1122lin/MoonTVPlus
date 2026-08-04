@@ -15,6 +15,7 @@ import android.net.http.SslError;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.provider.Settings;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
@@ -23,6 +24,7 @@ import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.webkit.CookieManager;
 import android.webkit.DownloadListener;
+import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
 import android.webkit.ServiceWorkerController;
 import android.webkit.ServiceWorkerWebSettings;
@@ -105,6 +107,7 @@ public class MainActivity extends Activity {
         settings.setUserAgentString(
                 settings.getUserAgentString() + " MoonTVPlusAndroidMobile"
         );
+        webView.addJavascriptInterface(new AndroidAppBridge(), "LinTVPlusAndroid");
 
         CookieManager cookieManager = CookieManager.getInstance();
         cookieManager.setAcceptCookie(true);
@@ -123,6 +126,36 @@ public class MainActivity extends Activity {
         webView.setWebViewClient(new MobileWebViewClient());
         webView.setWebChromeClient(new MobileWebChromeClient());
         webView.setDownloadListener(new MobileDownloadListener());
+    }
+
+    private final class AndroidAppBridge {
+        @JavascriptInterface
+        public void openCastSettings() {
+            runOnUiThread(() -> {
+                String currentUrl = webView == null ? null : webView.getUrl();
+                if (currentUrl == null || !isTrustedOrigin(Uri.parse(currentUrl))) {
+                    return;
+                }
+
+                if (!openSettings(Settings.ACTION_CAST_SETTINGS)
+                        && !openSettings(Settings.ACTION_WIRELESS_SETTINGS)) {
+                    Toast.makeText(
+                            MainActivity.this,
+                            "未找到系统投屏功能",
+                            Toast.LENGTH_SHORT
+                    ).show();
+                }
+            });
+        }
+    }
+
+    private boolean openSettings(String action) {
+        try {
+            startActivity(new Intent(action));
+            return true;
+        } catch (Exception error) {
+            return false;
+        }
     }
 
     private final class MobileWebViewClient extends WebViewClient {

@@ -25,8 +25,8 @@ val updateManifestUrl = propOrEnv(
     "UPDATE_MANIFEST_URL",
     "https://github.com/$updateRepository/releases/latest/download/android-mobile-update.json"
 )
-val versionNameValue = propOrEnv("VERSION_NAME", "VERSION_NAME", "1.0.5")
-val versionCodeValue = propOrEnv("VERSION_CODE", "VERSION_CODE", "6").toIntOrNull() ?: 6
+val versionNameValue = propOrEnv("VERSION_NAME", "VERSION_NAME", "1.0.6")
+val versionCodeValue = propOrEnv("VERSION_CODE", "VERSION_CODE", "7").toIntOrNull() ?: 7
 val minSdkValue = propOrEnv("MIN_SDK", "MIN_SDK", "23").toIntOrNull() ?: 23
 
 fun escapeJavaString(value: String): String = value
