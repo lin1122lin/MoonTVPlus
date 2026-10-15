@@ -27,6 +27,8 @@ export interface AdminConfig {
     TMDBApiKey?: string;
     TMDBProxy?: string;
     TMDBReverseProxy?: string;
+    // TMDB 图片默认地址：用户未在本地数据源设置中配置时，图片默认使用该地址
+    TMDBImageBaseUrl?: string;
     // 动漫/Bangumi配置
     BangumiDataSource?:
       | 'direct'
@@ -36,8 +38,11 @@ export interface AdminConfig {
     BangumiApiBaseUrl?: string;
     BangumiImageBaseUrl?: string;
     BangumiProxy?: string;
+    LiveChartProxy?: string;
     BannerDataSource?: string; // 轮播图数据源：TMDB、TX 或 Douban
-    RecommendationDataSource?: string; // 更多推荐数据源：Douban、TMDB、Mixed、MixedSmart
+    RecommendationDataSource?: string; // 更多推荐数据源：Douban、TMDB、Mixed
+    // 本地设置云同步模式：off=关闭，manual=手动（面板右上角备份/恢复按钮），auto=自动（进入网站静默拉取、面板打开静默同步）
+    LocalSettingsSyncMode?: 'off' | 'manual' | 'auto';
     // Pansou配置
     PansouApiUrl?: string;
     PansouUsername?: string;
@@ -152,6 +157,10 @@ export interface AdminConfig {
     progressThumbType?: 'default' | 'preset' | 'custom'; // 图标类型
     progressThumbPresetId?: string; // 预制图标ID
     progressThumbCustomUrl?: string; // 自定义图标URL
+    // 初始化加载样式：播放页/直播页首屏加载动画的款式
+    loadingStyle?: 'classic' | 'grid' | 'talisman';
+    // 评分星标样式：视频卡片右上角评分徽章的款式
+    rateBadgeStyle?: 'default' | 'flag' | 'medal';
   };
   OpenListConfig?: {
     Enabled: boolean; // 是否启用私人影库功能
@@ -178,6 +187,8 @@ export interface AdminConfig {
       [path: string]: {
         category: string; // 分类名
         refresh14m: boolean; // 该路径播放时是否启用 14 分钟 URL 续期
+        proxyPlay: boolean; // 该路径播放链接是否使用服务器代理播放
+        proxyCacheMinutes: number; // 代理播放时链接最终重定向的缓存时长（分钟），默认 60
       };
     };
   };
@@ -227,6 +238,7 @@ export interface AdminConfig {
     OpenAIModel?: string; // 模型名称，如gpt-4, gpt-3.5-turbo
     // Claude配置
     ClaudeApiKey?: string;
+    ClaudeBaseURL?: string; // Claude Messages API根地址
     ClaudeModel?: string; // 模型名称，如claude-3-opus-20240229
     // 自定义配置（兼容OpenAI格式的API）
     CustomApiKey?: string;
@@ -245,15 +257,21 @@ export interface AdminConfig {
     DecisionCustomModel?: string;
     // 联网搜索配置
     EnableWebSearch: boolean; // 是否启用联网搜索
-    WebSearchProvider?: 'tavily' | 'serper' | 'serpapi'; // 搜索服务提供商
+    WebSearchProvider?: 'tavily' | 'serper' | 'serpapi' | 'bing'; // 搜索服务提供商
     TavilyApiKey?: string; // Tavily API密钥
     SerperApiKey?: string; // Serper.dev API密钥
     SerpApiKey?: string; // SerpAPI密钥
+    // 新版工具式调用配置
+    EnableNewMode?: boolean; // 是否启用新版工具式调用（LLM 工具/function-calling），默认 true
+    NewProtocol?: 'openai-completions' | 'openai-responses' | 'claude'; // 新版协议，默认 openai-completions
+    MaxContext?: number; // 最大上下文 token 数，默认 131072（128k）
+    CompressThreshold?: number; // 上下文压缩触发阈值百分比（0-100），默认 90；0=关闭
     // 功能开关
     EnableHomepageEntry: boolean; // 首页入口开关
     EnableVideoCardEntry: boolean; // VideoCard入口开关
     EnablePlayPageEntry: boolean; // 播放页入口开关
     EnableAIComments: boolean; // AI评论生成开关
+    EnableAICommentsToolMode?: boolean; // AI评论走工具式调用（模型自主联网/查豆瓣/TMDB），默认关闭
     // 高级设置
     Temperature?: number; // AI温度参数（0-2），默认0.7
     MaxTokens?: number; // 最大回复token数，默认1000
@@ -396,10 +414,18 @@ export interface AdminConfig {
     Subscriptions: Array<{
       id: string;
       title: string;
+      /** 包含关键词：支持 & | ()；无运算符时逗号=AND */
       filterText: string;
-      excludeText?: string; // 排除关键词，逗号分隔；标题包含任一则跳过
+      /** 排除关键词：支持 & | ()；无运算符时逗号=OR */
+      excludeText?: string;
       source: 'acgrip' | 'mikan' | 'dmhy' | 'nyaa';
       enabled: boolean;
+      /** 单集只下载一次（默认 false） */
+      onePerEpisode?: boolean;
+      /** 缺集重新检索（默认 false） */
+      refillMissingEpisodes?: boolean;
+      /** 自定义集数提取正则（留空用内置规则，首个捕获组作为集数） */
+      episodeRegex?: string;
       lastCheckTime: number;
       lastEpisode: number;
       createdAt: number;

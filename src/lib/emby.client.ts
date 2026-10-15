@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { normalizeApiBaseUrl } from '@/lib/url';
+
 interface EmbyConfig {
   ServerURL: string;
   ApiKey?: string;
@@ -52,7 +54,7 @@ export interface EmbySubtitle {
   sourceFormat: string;
   codec?: string;
   isExternal?: boolean;
-  renderMode: 'native' | 'jassub';
+  renderMode: 'native' | 'jassub' | 'bitsub';
 }
 
 interface EmbyItemsResult {
@@ -80,6 +82,9 @@ interface EmbyView {
 
 const DEFAULT_EMBY_AUTHORIZATION_HEADER = 'MediaBrowser Client="moontvplus", Device="Web", DeviceId="moontvplus-web", Version="1.0.0"';
 
+// 文本字幕优先于位图字幕（PGS 等），自动加载的默认字幕优先取文本格式
+const TEXT_SUBTITLE_FORMATS = new Set(['ass', 'ssa', 'srt', 'vtt']);
+
 export class EmbyClient {
   private serverUrl: string;
   private apiKey?: string;
@@ -96,7 +101,7 @@ export class EmbyClient {
   private embyAuthorizationHeader: string;
 
   constructor(config: EmbyConfig) {
-    let serverUrl = config.ServerURL.replace(/\/$/, '');
+    let serverUrl = normalizeApiBaseUrl(config.ServerURL);
 
     // 存储高级选项
     this.removeEmbyPrefix = config.removeEmbyPrefix || false;
@@ -580,7 +585,15 @@ export class EmbyClient {
   }
 
   private getSubtitleTargetFormat(sourceFormat: string): string {
-    return sourceFormat === 'ass' || sourceFormat === 'ssa' ? sourceFormat : 'vtt';
+    // pgs 为位图字幕，无法转成 vtt 文本，需以原始格式交给 libbitsub 渲染
+    if (
+      sourceFormat === 'ass' ||
+      sourceFormat === 'ssa' ||
+      sourceFormat === 'pgs'
+    ) {
+      return sourceFormat;
+    }
+    return 'vtt';
   }
 
   private buildSubtitleStreamUrl(
@@ -653,7 +666,12 @@ export class EmbyClient {
         const language = stream.Language || 'unknown';
         const sourceFormat = this.normalizeSubtitleFormat(stream.Codec, stream.DeliveryUrl);
         const targetFormat = this.getSubtitleTargetFormat(sourceFormat);
-        const renderMode = targetFormat === 'ass' || targetFormat === 'ssa' ? 'jassub' : 'native';
+        const renderMode =
+          targetFormat === 'pgs'
+            ? 'bitsub'
+            : targetFormat === 'ass' || targetFormat === 'ssa'
+              ? 'jassub'
+              : 'native';
         const label = stream.DisplayTitle || `${language} (${stream.Codec || targetFormat})`;
 
         subtitles.push({
@@ -685,6 +703,14 @@ export class EmbyClient {
           renderMode,
         });
       });
+
+    // ass/ssa/srt/vtt 等文本字幕排在前，PGS 等位图字幕排在后；
+    // 播放端默认取第一条字幕，排序后自动加载文本字幕而非 PGS
+    subtitles.sort(
+      (a, b) =>
+        Number(!TEXT_SUBTITLE_FORMATS.has(a.sourceFormat)) -
+        Number(!TEXT_SUBTITLE_FORMATS.has(b.sourceFormat))
+    );
 
     return subtitles;
   }
