@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { normalizeApiBaseUrl } from '@/lib/url';
+
 // Token 内存缓存
 const tokenCache = new Map<string, { token: string; expiresAt: number }>();
 
@@ -10,6 +12,7 @@ export interface OpenListFile {
   modified: string;
   sign?: string; // 临时下载签名
   raw_url?: string; // 完整下载链接
+  provider?: string; // OpenList 存储驱动名，如 115 Cloud
   thumb?: string;
   type: number;
   path?: string;
@@ -34,12 +37,15 @@ export interface OpenListGetResponse {
 
 export class OpenListClient {
   private token = '';
+  private baseURL: string;
 
   constructor(
-    private baseURL: string,
+    baseURL: string,
     private username: string,
     private password: string
-  ) {}
+  ) {
+    this.baseURL = normalizeApiBaseUrl(baseURL);
+  }
 
   /**
    * 使用账号密码登录获取Token
@@ -49,7 +55,8 @@ export class OpenListClient {
     username: string,
     password: string
   ): Promise<string> {
-    const response = await fetch(`${baseURL}/api/auth/login`, {
+    const normalizedBaseURL = normalizeApiBaseUrl(baseURL);
+    const response = await fetch(`${normalizedBaseURL}/api/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
