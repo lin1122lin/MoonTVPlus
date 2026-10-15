@@ -11320,7 +11320,7 @@ function PlayPageClient() {
                             const currentPath = (window.location.pathname + window.location.search).replace(/^\//, '');
                             window.open(`moontvpluspc://${currentPath}`, '_blank');
                           }}
-                          className='group relative flex items-center justify-center gap-1 w-8 h-8 lg:w-auto lg:h-auto lg:px-2 lg:py-1.5 bg-emerald-500 hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-700 text-xs font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer overflow-hidden border border-emerald-600 dark:border-emerald-700 flex-shrink-0'
+                          className='group relative hidden items-center justify-center gap-1 w-8 h-8 lg:flex lg:w-auto lg:h-auto lg:px-2 lg:py-1.5 bg-emerald-500 hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-700 text-xs font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer overflow-hidden border border-emerald-600 dark:border-emerald-700 flex-shrink-0'
                           title='PC Client打开'
                         >
                           <svg
@@ -11350,7 +11350,7 @@ function PlayPageClient() {
                               handleCreateWatchRoom();
                             }}
                             disabled={isCreatingRoom}
-                            className='group relative flex items-center justify-center gap-1 w-8 h-8 lg:w-auto lg:h-auto lg:px-2 lg:py-1.5 bg-purple-500 hover:bg-purple-600 dark:bg-purple-600 dark:hover:bg-purple-700 text-xs font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer overflow-hidden border border-purple-600 dark:border-purple-700 flex-shrink-0 disabled:opacity-60 disabled:cursor-wait'
+                            className='group relative flex h-9 w-full min-w-0 items-center justify-center gap-1 px-2 lg:h-auto lg:w-auto lg:py-1.5 bg-purple-500 hover:bg-purple-600 dark:bg-purple-600 dark:hover:bg-purple-700 text-xs font-medium rounded-md transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer overflow-hidden border border-purple-600 dark:border-purple-700 flex-shrink-0 disabled:opacity-60 disabled:cursor-wait'
                             title='创建观影室'
                           >
                             {isCreatingRoom ? (
@@ -11358,8 +11358,8 @@ function PlayPageClient() {
                             ) : (
                               <Users className='w-4 h-4 flex-shrink-0 text-white' />
                             )}
-                            <span className='hidden lg:inline max-w-0 group-hover:max-w-[120px] overflow-hidden whitespace-nowrap transition-all duration-200 ease-in-out text-white'>
-                              {isCreatingRoom ? '创建中' : '创建观影室'}
+                            <span className='inline overflow-hidden whitespace-nowrap transition-all duration-200 ease-in-out text-white lg:max-w-0 lg:group-hover:max-w-[120px]'>
+                              {isCreatingRoom ? '创建中' : '观影室'}
                             </span>
                           </button>
                         )}
