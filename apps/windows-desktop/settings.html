@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'">
+  <title>LinTVPlus 设置</title>
+  <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+  <main>
+    <h1>窗口设置</h1>
+    <form id="settings">
+      <label class="field" for="shortcut">隐藏 / 恢复快捷键
+        <input id="shortcut" autocomplete="off" spellcheck="false" readonly aria-describedby="shortcut-error">
+      </label>
+      <div id="shortcut-error" class="error" role="status"></div>
+      <label class="field" for="opacity"><span>窗口透明度 <output id="opacity-value">100%</output></span>
+        <input type="range" id="opacity" min="20" max="100" step="5" value="100">
+      </label>
+      <label class="option"><span>隐藏 Windows 任务栏图标</span><input id="hide-taskbar" type="checkbox"></label>
+      <label class="option"><span>鼠标移出窗口自动隐藏</span><input id="auto-hide" type="checkbox"></label>
+      <div class="footer"><span id="status" role="status" aria-live="polite"></span><button type="submit">保存设置</button></div>
+    </form>
+  </main>
+  <script src="settings.js"></script>
+</body>
+</html>
