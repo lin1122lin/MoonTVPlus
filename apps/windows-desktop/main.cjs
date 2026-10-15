@@ -133,15 +133,19 @@ else {
       try { applyPreferences(validatePreferences(value)); return { ok: true }; }
       catch (error) { return { ok: false, error: error.message }; }
     });
+    let startupError;
     try { applyPreferences(saved); }
     catch (error) {
       preferences = saved;
       window.setOpacity(saved.opacity);
       tray.setToolTip('LinTVPlus');
-      dialog.showErrorBox('LinTVPlus 设置', error.message + ' 可从托盘打开设置。');
+      startupError = error.message + ' 可从托盘打开设置。';
     }
     window.on('close', event => { if (!quitting) { event.preventDefault(); hide(); } });
-    window.once('ready-to-show', restore);
+    window.once('ready-to-show', () => {
+      restore();
+      if (startupError) dialog.showMessageBox(window, { type: 'error', message: startupError });
+    });
     window.webContents.setWindowOpenHandler(({ url }) => { openExternal(url); return { action: 'deny' }; });
     window.webContents.on('will-navigate', (event, url) => {
       if (new URL(url).origin !== siteOrigin) { event.preventDefault(); openExternal(url); }
@@ -151,7 +155,14 @@ else {
       callback(new URL(contents.getURL() || siteUrl).origin === siteOrigin &&
         ['fullscreen', 'clipboard-sanitized-write'].includes(permission));
     });
-    window.loadURL(siteUrl).catch(error => dialog.showErrorBox('LinTVPlus', '站点加载失败，请通过“查看 → 刷新”重试。'));
+    window.loadURL(siteUrl).catch(error => {
+      if (quitting || error.code === 'ERR_ABORTED' || error.errno === -3) return;
+      console.error('Site load failed:', error.code || error.message);
+      dialog.showMessageBox(window, {
+        type: 'error', title: 'LinTVPlus',
+        message: '站点连接失败，请检查网络后通过“查看 → 刷新”重试。',
+      });
+    });
     cursorTimer = setInterval(() => {
       if (!preferences.autoHide || !window.isVisible() || window.isMinimized() || settingsWindow?.isVisible()) { wasInside = false; return; }
       const inside = isInside(screen.getCursorScreenPoint(), window.getBounds());

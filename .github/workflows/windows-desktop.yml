@@ -39,6 +39,7 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: node smoke-test.cjs
+        timeout-minutes: 3
       - name: Read desktop version
         id: version
         shell: pwsh
