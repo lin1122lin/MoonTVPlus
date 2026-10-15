@@ -1,0 +1,33 @@
+{
+  "name": "lintvplus-desktop",
+  "productName": "LinTVPlus",
+  "version": "1.0.0",
+  "private": true,
+  "description": "LinTVPlus Windows client",
+  "author": "lin1122lin",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test preferences.test.cjs updater.test.cjs",
+    "dist": "electron-builder --win nsis portable --x64"
+  },
+  "dependencies": {
+    "electron-updater": "6.8.9"
+  },
+  "devDependencies": {
+    "electron": "44.7.2",
+    "electron-builder": "26.15.3",
+    "playwright-core": "1.58.2"
+  },
+  "build": {
+    "appId": "lin.tvplus.desktop",
+    "productName": "LinTVPlus",
+    "files": ["main.cjs", "preferences.cjs", "preload.cjs", "updater.cjs", "settings.html", "settings.js", "settings.css"],
+    "extraResources": [{"from": "../../public/logo.png", "to": "logo.png"}],
+    "directories": {"output": "dist"},
+    "win": {"icon": "../../public/logo.png"},
+    "nsis": {"oneClick": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "artifactName": "LinTVPlus-${version}-${arch}-setup.${ext}"},
+    "portable": {"artifactName": "LinTVPlus-${version}-${arch}-portable.${ext}"},
+    "publish": {"provider": "generic", "url": "https://github.com/lin1122lin/MoonTVPlus/releases/download/windows-latest/"}
+  }
+}
