@@ -41,6 +41,7 @@ import { createPortal } from 'react-dom';
 import { getAuthInfoFromBrowserCookie } from '@/lib/auth';
 import { clearAllDanmakuCache, getDanmakuCacheStats } from '@/lib/danmaku/api';
 import { SAVE_LIVE_PLAY_RECORDS_KEY } from '@/lib/db.client';
+import { getPreferredDownloadMode } from '@/lib/download-preferences';
 import {
   LOCAL_SETTINGS_KEYS,
   LOCAL_SETTINGS_SYNC_LAST_PULL_KEY,
@@ -924,13 +925,7 @@ export const UserMenu: React.FC = () => {
 
       // 加载下载模式设置
       const savedDownloadMode = localStorage.getItem('downloadMode');
-      if (
-        savedDownloadMode === 'browser' ||
-        savedDownloadMode === 'filesystem' ||
-        savedDownloadMode === 'indexeddb'
-      ) {
-        setDownloadMode(savedDownloadMode);
-      }
+      setDownloadMode(getPreferredDownloadMode(savedDownloadMode, navigator.userAgent));
 
       // 加载保存路径设置
       const savedFilesystemSavePath =
@@ -1786,6 +1781,15 @@ export const UserMenu: React.FC = () => {
   };
 
   const handleDownloadModeChange = (mode: 'browser' | 'filesystem' | 'indexeddb') => {
+    if (getPreferredDownloadMode(mode, navigator.userAgent) !== mode) {
+      setConfirmDialog({
+        isOpen: true,
+        title: '当前应用不支持文件导出',
+        message: '安卓应用请使用应用内缓存，下载后可在“我的下载”中播放。',
+        onConfirm: () => setConfirmDialog((prev) => ({ ...prev, isOpen: false })),
+      });
+      return;
+    }
     // 如果选择 filesystem 模式，先检测浏览器是否支持
     if (
       mode === 'filesystem' &&
@@ -2967,6 +2971,16 @@ export const UserMenu: React.FC = () => {
 
         {/* 菜单项 */}
         <div className='py-1'>
+          <button
+            onClick={() => {
+              setIsDownloadManagementOpen(true);
+              handleCloseMenu();
+            }}
+            className='flex min-h-[44px] w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800'
+          >
+            <Download className='h-4 w-4' />
+            我的下载
+          </button>
           {/* 通知按钮 */}
           <button
             onClick={() => {

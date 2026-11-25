@@ -4201,6 +4201,23 @@ function PlayPageClient() {
     videoMediaTypeRef.current = '';
     mediaCorsFallbackRef.current = false;
 
+    // 已完成的应用内缓存不依赖在线播放地址解析。
+    const cachedVideo = await getIndexedDBVideoPlaybackUrl(
+      detailData.source, detailData.id, episodeIndex, { preferServiceWorker: true }
+    );
+    if (requestSeq !== videoUrlRequestSeqRef.current) {
+      cachedVideo.objectUrls?.forEach((url) => URL.revokeObjectURL(url));
+      return;
+    }
+    if (cachedVideo.hasLocal && cachedVideo.url) {
+      cleanupLocalPlaybackBlobUrls();
+      (window as any).__localFileBlobUrls = cachedVideo.objectUrls || [];
+      setVideoQualities([]);
+      setVideoUrl(cachedVideo.url);
+      setPlaybackSourceBadge('local');
+      return;
+    }
+
     let newUrl = detailData?.episodes[episodeIndex] || '';
     let nextPlaybackSourceBadge: PlaybackSourceBadge = null;
     const isXiaoyaLazyPlayUrl = newUrl.startsWith('/api/xiaoya/play');
@@ -4396,37 +4413,8 @@ function PlayPageClient() {
       }
     }
 
-    let indexedDBCheck: Awaited<ReturnType<typeof getIndexedDBVideoPlaybackUrl>> = { hasLocal: false };
-
-    // 如果没有 File System API 本地文件，检查 IndexedDB 应用内离线缓存
-    if (!fileSystemCheck.hasLocal && currentSource && currentId) {
-      indexedDBCheck = await getIndexedDBVideoPlaybackUrl(
-        currentSource,
-        currentId,
-        episodeIndex,
-        { preferServiceWorker: true }
-      );
-      if (requestSeq !== videoUrlRequestSeqRef.current) {
-        indexedDBCheck.objectUrls?.forEach((url) => URL.revokeObjectURL(url));
-        return;
-      }
-
-      if (indexedDBCheck.hasLocal && indexedDBCheck.url) {
-        cleanupLocalPlaybackBlobUrls();
-        if (indexedDBCheck.objectUrls?.length) {
-          (window as any).__localFileBlobUrls = indexedDBCheck.objectUrls;
-        }
-        newUrl = indexedDBCheck.url;
-        nextPlaybackSourceBadge = 'local';
-        console.log(
-          `使用 IndexedDB 本地缓存播放（${indexedDBCheck.mode === 'service-worker' ? 'Service Worker' : 'Blob 降级'} 模式）:`,
-          episodeTitle
-        );
-      }
-    }
-
     // 如果没有 File System API / IndexedDB 本地文件，检查服务器端本地下载
-    if (!fileSystemCheck.hasLocal && !indexedDBCheck.hasLocal) {
+    if (!fileSystemCheck.hasLocal) {
       const hasLocalFile = await checkLocalDownload(currentSource, currentId, episodeIndex);
       if (requestSeq !== videoUrlRequestSeqRef.current) {
         return;
