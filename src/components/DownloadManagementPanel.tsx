@@ -1,7 +1,7 @@
 'use client';
 
-import { Check, ChevronDown, Download, Trash2, X } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { Check, ChevronDown, Download, Play, Trash2, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { downloadDB, CompletedTask } from '@/lib/download-db';
@@ -13,6 +13,7 @@ import {
 } from '@/lib/indexeddb-video-cache';
 
 import { ConfirmDialog } from './ConfirmDialog';
+import { LocalDownloadPlayer } from './LocalDownloadPlayer';
 
 interface DownloadManagementPanelProps {
   isOpen: boolean;
@@ -43,6 +44,8 @@ export function DownloadManagementPanel({
   const [isExporting, setIsExporting] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [playingTask, setPlayingTask] = useState<CompletedTask | null>(null);
+  const closePlayer = useCallback(() => setPlayingTask(null), []);
 
   useEffect(() => {
     setMounted(true);
@@ -51,7 +54,11 @@ export function DownloadManagementPanel({
   useEffect(() => {
     if (isOpen) {
       loadCompletedTasks();
+      window.addEventListener('downloads:completed', loadCompletedTasks);
+    } else {
+      setPlayingTask(null);
     }
+    return () => window.removeEventListener('downloads:completed', loadCompletedTasks);
   }, [isOpen]);
 
   const loadCompletedTasks = async () => {
@@ -483,10 +490,10 @@ export function DownloadManagementPanel({
       case 'filesystem':
         return 'File System API';
       case 'indexeddb':
-        return 'IndexedDB 缓存';
+        return '应用内缓存';
       case 'browser':
       default:
-        return '浏览器下载';
+        return '已发起文件导出';
     }
   };
 
@@ -556,7 +563,7 @@ export function DownloadManagementPanel({
             {/* Header */}
             <div className='flex items-center justify-between border-b border-gray-200 p-3 dark:border-gray-700 sm:p-4'>
               <h2 className='text-lg font-semibold text-gray-800 dark:text-gray-200 sm:text-xl'>
-                下载文件管理
+                我的下载
               </h2>
               <button
                 onClick={onClose}
@@ -766,6 +773,19 @@ export function DownloadManagementPanel({
                                       {getDownloadModeLabel(task.downloadMode)}
                                     </span>
                                   </div>
+                                  {task.downloadMode === 'indexeddb' && (
+                                    <button type='button'
+                                      onClick={(event) => { event.stopPropagation(); setPlayingTask(task); }}
+                                      className='mt-2 inline-flex min-h-[44px] items-center gap-2 rounded bg-green-600 px-3 text-sm text-white hover:bg-green-700'
+                                      aria-label={`播放已下载的第 ${task.episodeIndex + 1} 集`}>
+                                      <Play className='h-4 w-4' />播放
+                                    </button>
+                                  )}
+                                  {task.downloadMode === 'browser' && (
+                                    <p className='mt-2 text-xs text-gray-500 dark:text-gray-400'>
+                                      文件保存状态由浏览器或系统管理，应用内未保留视频缓存。
+                                    </p>
+                                  )}
                                 </div>
                               </div>
                             ))}
@@ -778,6 +798,7 @@ export function DownloadManagementPanel({
               )}
             </div>
           </div>
+          {playingTask && <LocalDownloadPlayer task={playingTask} onClose={closePlayer} />}
         </div>,
         document.body
       )}

@@ -5,6 +5,7 @@ import React, { createContext, useCallback, useContext, useState, useEffect } fr
 import { M3U8Downloader, M3U8DownloadTask } from '@/lib/m3u8-downloader';
 import Toast from '@/components/Toast';
 import { downloadDB } from '@/lib/download-db';
+import { getPreferredDownloadMode } from '@/lib/download-preferences';
 import {
   buildIndexedDBVideoCacheKey,
   getBrowserStorageEstimate,
@@ -73,9 +74,8 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
     onComplete: async (task) => {
       setTasks(downloader.getAllTasks());
 
-      // File System / IndexedDB 模式保存到已完成任务表，用于本地播放命中和下载管理
+      // 浏览器导出也保留记录，但不代表系统已将导出文件保存成功。
       if (
-        (task.downloadMode === 'filesystem' || task.downloadMode === 'indexeddb') &&
         task.source &&
         task.videoId &&
         task.episodeIndex !== undefined
@@ -121,11 +121,13 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
             videoId: task.videoId,
             episodeIndex: task.episodeIndex,
             completedAt: Date.now(),
-            downloadMode: task.downloadMode,
+            downloadMode: task.downloadMode || 'browser',
             fileSize,
           });
+          window.dispatchEvent(new Event('downloads:completed'));
         } catch (error) {
           console.error('保存已完成任务失败:', error);
+          setToast({ message: '下载记录保存失败，请检查设备存储空间。', type: 'error' });
         }
       }
 
@@ -338,7 +340,7 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
     try {
       // 读取下载模式设置
       const downloadMode = typeof window !== 'undefined'
-        ? (localStorage.getItem('downloadMode') as 'browser' | 'filesystem' | 'indexeddb') || 'browser'
+        ? getPreferredDownloadMode(localStorage.getItem('downloadMode'), navigator.userAgent)
         : 'browser';
 
       // 如果是 filesystem 模式，检查是否已经下载过
