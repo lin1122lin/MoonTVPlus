@@ -142,6 +142,7 @@ export function LocalDownloadPlayer({
       <div className='relative flex min-h-0 flex-1 items-center justify-center'>
         <video
           ref={videoRef}
+          data-download-player
           controls
           playsInline
           autoPlay

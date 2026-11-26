@@ -5,9 +5,11 @@ import React, { useMemo, useState } from 'react';
 import { M3U8DownloadTask, M3U8SegmentLogStatus } from '@/lib/m3u8-downloader';
 
 import { useDownload } from '@/contexts/DownloadContext';
+import { usePauseBackgroundMedia } from '@/hooks/usePauseBackgroundMedia';
 
 export function DownloadPanel() {
   const { tasks, showDownloadPanel, setShowDownloadPanel, startTask, pauseTask, cancelTask, retryFailedSegments, getProgress } = useDownload();
+  usePauseBackgroundMedia(showDownloadPanel);
   const [logTaskId, setLogTaskId] = useState<string | null>(null);
   const [logFilter, setLogFilter] = useState<'all' | M3U8SegmentLogStatus>('all');
 
