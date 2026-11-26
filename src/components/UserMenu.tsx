@@ -39,6 +39,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { getAuthInfoFromBrowserCookie } from '@/lib/auth';
+import { androidDownloadsSelected, getAndroidDownloadsBridge, openAndroidDownloads } from '@/lib/android-downloads';
 import { clearAllDanmakuCache, getDanmakuCacheStats } from '@/lib/danmaku/api';
 import { SAVE_LIVE_PLAY_RECORDS_KEY } from '@/lib/db.client';
 import { getPreferredDownloadMode } from '@/lib/download-preferences';
@@ -236,6 +237,16 @@ export const UserMenu: React.FC = () => {
     'browser'
   );
   const [filesystemSavePath, setFilesystemSavePath] = useState<string>('');
+  const [androidDownloadEnabled, setAndroidDownloadEnabled] = useState(false);
+  const [androidDownloadSupported, setAndroidDownloadSupported] = useState(false);
+  useEffect(() => {
+    setAndroidDownloadSupported(Boolean(getAndroidDownloadsBridge()));
+    setAndroidDownloadEnabled(androidDownloadsSelected());
+    const legacy = () => { sessionStorage.removeItem('lintvplusOpenLegacyDownloads'); setIsDownloadManagementOpen(true); };
+    window.addEventListener('lintvplus:legacy-downloads', legacy);
+    if (sessionStorage.getItem('lintvplusOpenLegacyDownloads')) legacy();
+    return () => window.removeEventListener('lintvplus:legacy-downloads', legacy);
+  }, []);
 
   // 通知设置
   const [userEmail, setUserEmail] = useState('');
@@ -1809,6 +1820,8 @@ export const UserMenu: React.FC = () => {
     }
 
     setDownloadMode(mode);
+    setAndroidDownloadEnabled(false);
+    localStorage.setItem('androidDownloadEngine', 'web');
     if (typeof window !== 'undefined') {
       localStorage.setItem('downloadMode', mode);
     }
@@ -2381,6 +2394,8 @@ export const UserMenu: React.FC = () => {
         break;
       case 'downloadMode':
         setDownloadMode('browser');
+        setAndroidDownloadEnabled(false);
+        localStorage.removeItem('androidDownloadEngine');
         break;
       case 'filesystemSavePath':
         setFilesystemSavePath('');
@@ -2973,7 +2988,7 @@ export const UserMenu: React.FC = () => {
         <div className='py-1'>
           <button
             onClick={() => {
-              setIsDownloadManagementOpen(true);
+              if (!openAndroidDownloads()) setIsDownloadManagementOpen(true);
               handleCloseMenu();
             }}
             className='flex min-h-[44px] w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800'
@@ -4541,7 +4556,7 @@ export const UserMenu: React.FC = () => {
                           type='radio'
                           name='downloadMode'
                           value='browser'
-                          checked={downloadMode === 'browser'}
+                          checked={!androidDownloadEnabled && downloadMode === 'browser'}
                           onChange={() => handleDownloadModeChange('browser')}
                           className='w-4 h-4 text-green-500'
                         />
@@ -4554,7 +4569,7 @@ export const UserMenu: React.FC = () => {
                           type='radio'
                           name='downloadMode'
                           value='filesystem'
-                          checked={downloadMode === 'filesystem'}
+                          checked={!androidDownloadEnabled && downloadMode === 'filesystem'}
                           onChange={() =>
                             handleDownloadModeChange('filesystem')
                           }
@@ -4569,14 +4584,25 @@ export const UserMenu: React.FC = () => {
                           type='radio'
                           name='downloadMode'
                           value='indexeddb'
-                          checked={downloadMode === 'indexeddb'}
+                          checked={!androidDownloadEnabled && downloadMode === 'indexeddb'}
                           onChange={() =>
                             handleDownloadModeChange('indexeddb')
                           }
                           className='mt-0.5 w-4 h-4 text-green-500'
                         />
                         <span className='text-sm text-gray-700 dark:text-gray-300'>
-                          IndexedDB 缓存（应用内离线播放）
+                          网页缓存（IndexedDB）
+                        </span>
+                      </label>
+                      <label className='flex items-start gap-2'>
+                        <input type='radio' name='downloadMode' value='android'
+                          checked={androidDownloadEnabled} disabled={!androidDownloadSupported}
+                          onChange={() => {
+                            setAndroidDownloadEnabled(true);
+                            localStorage.setItem('androidDownloadEngine', 'native');
+                          }} className='mt-0.5 h-4 w-4 text-green-500' />
+                        <span className='text-sm text-gray-700 dark:text-gray-300'>
+                          安卓后台下载{androidDownloadSupported ? '（支持息屏）' : '（需新版安卓应用）'}
                         </span>
                       </label>
                     </div>
@@ -4612,7 +4638,7 @@ export const UserMenu: React.FC = () => {
                   {/* 下载文件管理 */}
                   <div className='space-y-2'>
                     <button
-                      onClick={() => setIsDownloadManagementOpen(true)}
+                      onClick={() => { if (!openAndroidDownloads()) setIsDownloadManagementOpen(true); }}
                       className='w-full px-4 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors flex items-center justify-center gap-2'
                     >
                       <Package className='w-4 h-4' />

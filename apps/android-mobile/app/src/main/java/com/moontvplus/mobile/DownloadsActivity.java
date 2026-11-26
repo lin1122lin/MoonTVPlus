@@ -43,23 +43,27 @@ public final class DownloadsActivity extends Activity {
 
     private void render() {
         List<Download> tasks = new ArrayList<>(); StringBuilder signature = new StringBuilder();
+        boolean paused = OfflineDownloads.manager(this).getDownloadsPaused();
+        signature.append(paused);
+        boolean readFailed = false;
         try (DownloadCursor cursor = OfflineDownloads.manager(this).getDownloadIndex().getDownloads()) {
             while (cursor.moveToNext()) { Download task = cursor.getDownload(); tasks.add(task); signature.append(task.request.id).append(':').append(task.state).append(':').append(task.getBytesDownloaded()).append(';'); }
-        } catch (Exception error) { signature.append("error"); }
+        } catch (Exception error) { signature.append("error"); readFailed = true; }
         if (signature.toString().equals(lastRender) && rows.getChildCount() > 0) return;
         lastRender = signature.toString(); rows.removeAllViews();
-        if (tasks.isEmpty()) rows.addView(text("暂无安卓下载任务", 16));
+        if (readFailed) rows.addView(text("读取下载列表失败，请稍后重试", 16));
+        else if (tasks.isEmpty()) rows.addView(text("暂无安卓下载任务", 16));
         for (Download task : tasks) {
             LinearLayout row = new LinearLayout(this); row.setOrientation(LinearLayout.VERTICAL); row.setPadding(8, 24, 8, 24);
             row.addView(text(OfflineDownloads.title(task.request), 17));
             float percent = task.getPercentDownloaded();
             String state = task.state == Download.STATE_COMPLETED ? "已完成" : task.state == Download.STATE_FAILED ? "失败，可重试"
-                    : task.state == Download.STATE_STOPPED ? "已暂停" : task.state == Download.STATE_DOWNLOADING ? "下载中" : "等待网络或排队中";
+                    : task.state == Download.STATE_STOPPED || paused ? "已暂停" : task.state == Download.STATE_DOWNLOADING ? "下载中" : "等待网络或排队中";
             row.addView(text(state + " · " + String.format(Locale.ROOT, "%.1f MB", task.getBytesDownloaded() / 1048576.0)
                     + (percent >= 0 ? String.format(Locale.ROOT, " · %.0f%%", percent) : ""), 14));
             LinearLayout actions = new LinearLayout(this);
             if (task.state == Download.STATE_COMPLETED) button(actions, "播放", () -> startActivity(new Intent(this, OfflinePlayerActivity.class).putExtra("downloadId", task.request.id)));
-            else if (task.state == Download.STATE_DOWNLOADING || task.state == Download.STATE_QUEUED) button(actions, "暂停", () -> DownloadService.sendSetStopReason(this, OfflineDownloadService.class, task.request.id, 1, false));
+            else if (!paused && (task.state == Download.STATE_DOWNLOADING || task.state == Download.STATE_QUEUED)) button(actions, "暂停", () -> DownloadService.sendSetStopReason(this, OfflineDownloadService.class, task.request.id, 1, false));
             else button(actions, "继续 / 重试", () -> {
                 OfflineDownloads.manager(this).resumeDownloads();
                 DownloadService.sendAddDownload(this, OfflineDownloadService.class, task.request, true);

@@ -755,6 +755,7 @@ public class MainActivity extends Activity {
             updateManager.onPause();
         }
         if (webView != null) {
+            webView.evaluateJavascript("document.querySelectorAll('video,audio').forEach(media=>media.pause())", null);
             webView.onPause();
         }
         super.onPause();

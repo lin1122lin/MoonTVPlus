@@ -19,6 +19,7 @@ import {
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Fragment, useEffect, useState } from 'react';
+import { openAndroidDownloads } from '@/lib/android-downloads';
 
 import { DownloadManagementPanel } from './DownloadManagementPanel';
 import { useWatchRoomContextSafe } from './WatchRoomProvider';
@@ -226,7 +227,7 @@ const MobileBottomNav = ({ activePath }: MobileBottomNavProps) => {
                   >
                     <button
                       type='button'
-                      onClick={() => setDownloadsOpen(true)}
+                      onClick={() => { if (!openAndroidDownloads()) setDownloadsOpen(true); }}
                       className='flex h-14 w-full flex-col items-center justify-center gap-1 text-xs text-gray-600 dark:text-gray-300'
                     >
                       <Download className='h-6 w-6 text-gray-500 dark:text-gray-400' />

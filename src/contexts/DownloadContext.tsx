@@ -6,6 +6,7 @@ import { M3U8Downloader, M3U8DownloadTask } from '@/lib/m3u8-downloader';
 import Toast from '@/components/Toast';
 import { downloadDB } from '@/lib/download-db';
 import { getPreferredDownloadMode } from '@/lib/download-preferences';
+import { androidDownloadsSelected, enqueueAndroidDownloads } from '@/lib/android-downloads';
 import {
   buildIndexedDBVideoCacheKey,
   getBrowserStorageEstimate,
@@ -339,6 +340,10 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
   ) => {
     try {
       // 读取下载模式设置
+      if (androidDownloadsSelected()) {
+        enqueueAndroidDownloads([{ url, title, ...metadata, episodeIndex: metadata?.episodeIndex ?? 0, mediaType: 'hls' }]);
+        return;
+      }
       const downloadMode = typeof window !== 'undefined'
         ? getPreferredDownloadMode(localStorage.getItem('downloadMode'), navigator.userAgent)
         : 'browser';

@@ -90,6 +90,7 @@ import {
   setRecommendationCache,
 } from '@/lib/recommendations/cache';
 import { getIndexedDBVideoPlaybackUrl } from '@/lib/indexeddb-video-cache';
+import { androidDownloadsSelected, enqueueAndroidDownloads, type AndroidDownloadTask } from '@/lib/android-downloads';
 import {
   convertSubtitleFileToVttObjectUrl,
   CUSTOM_SUBTITLE_ACCEPT,
@@ -4467,6 +4468,35 @@ function PlayPageClient() {
 
     const tokenParam = proxyToken ? `&token=${encodeURIComponent(proxyToken)}` : '';
     const origin = `${window.location.protocol}//${window.location.host}`;
+
+    if (!offlineMode && androidDownloadsSelected()) {
+      try {
+        const tasks: AndroidDownloadTask[] = [];
+        if (episodeIndexes.length > 50) throw new Error('每次最多下载 50 集');
+        for (const episodeIndex of episodeIndexes) {
+          if (!Number.isInteger(episodeIndex) || episodeIndex < 0 || episodeIndex >= detail.episodes.length) throw new Error('集数无效');
+          let url = detail.episodes[episodeIndex];
+          if (url.startsWith('/api/') && /\/play(?:\?|$)/.test(url)) {
+            const response = await fetch(`${url}${url.includes('?') ? '&' : '?'}format=json`);
+            if (!response.ok) throw new Error('获取下载地址失败');
+            const data = await response.json();
+            if (typeof data.url !== 'string') throw new Error('未获取到下载地址');
+            url = data.url;
+          }
+          const file = /\.(mp4|webm|mkv)(\?|$)/i.test(url);
+          tasks.push({
+            url: externalPlayerAdBlock && !file ? `${origin}/api/proxy-m3u8?url=${encodeURIComponent(new URL(url, origin).href)}&source=${encodeURIComponent(currentSource)}${tokenParam}` : new URL(url, origin).href,
+            title: `${videoTitle}_第${episodeIndex + 1}集`, source: currentSource, videoId: currentId,
+            episodeIndex, mediaType: file ? 'file' : 'hls',
+          });
+        }
+        enqueueAndroidDownloads(tasks);
+        if (artPlayerRef.current) artPlayerRef.current.notice.show = '请在安卓下载窗口确认任务';
+      } catch (error) {
+        if (artPlayerRef.current) artPlayerRef.current.notice.show = error instanceof Error ? error.message : '创建安卓下载失败';
+      }
+      return;
+    }
 
     let successCount = 0;
     let failCount = 0;
