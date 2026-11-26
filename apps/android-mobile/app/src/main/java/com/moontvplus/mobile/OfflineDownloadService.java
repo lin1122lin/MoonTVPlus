@@ -9,7 +9,7 @@ import androidx.media3.exoplayer.offline.DownloadManager;
 import androidx.media3.exoplayer.offline.DownloadService;
 import androidx.media3.exoplayer.scheduler.Scheduler;
 import androidx.media3.exoplayer.scheduler.Requirements;
-import androidx.media3.ui.DownloadNotificationHelper;
+import androidx.media3.exoplayer.offline.DownloadNotificationHelper;
 import java.util.List;
 
 public final class OfflineDownloadService extends DownloadService {
