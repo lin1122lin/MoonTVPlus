@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; media-src blob:; connect-src blob:; worker-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>网页缓存 · LinTVPlus</title>
+  <link rel="icon" href="./logo.png" type="image/png">
+  <link rel="stylesheet" href="./offline.css">
+  <script type="module" src="./offline-app.js"></script>
+</head>
+<body>
+  <header><img src="./logo.png" alt="" width="32" height="32"><div><span class="brand">LinTVPlus</span><h1>我的下载</h1></div><span class="badge">本机</span></header>
+  <nav aria-label="缓存分类"><button id="native-tab">安卓下载</button><button aria-current="page">网页缓存</button><button id="files-tab">本机文件</button></nav>
+  <main>
+    <div class="section-head"><div><h2>网页缓存</h2><p id="summary" role="status">正在读取本机记录…</p></div><button class="outline" id="refresh">刷新</button></div>
+    <p id="error" role="alert" hidden></p>
+    <div id="groups"></div>
+    <div id="empty" hidden><h2>暂无可读取的网页缓存</h2><p>浏览器与安卓应用的存储相互独立。导出的视频可从“本机文件”打开。</p><button id="empty-files">打开本机文件</button></div>
+  </main>
+  <dialog id="player" aria-labelledby="player-title"><div class="player-head"><h2 id="player-title"></h2><button id="close-player">关闭</button></div><p id="player-status" role="status"></p><video id="video" controls playsinline></video><p id="player-error" role="alert" hidden></p></dialog>
+</body>
+</html>

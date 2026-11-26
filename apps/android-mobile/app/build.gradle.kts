@@ -1,5 +1,28 @@
 plugins {
     id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
+}
+
+dependencies {
+    implementation(platform("androidx.compose:compose-bom:2025.04.01"))
+    implementation("androidx.activity:activity-compose:1.10.1")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-core")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    debugImplementation("androidx.compose.ui:ui-tooling")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    implementation("androidx.documentfile:documentfile:1.0.1")
+    implementation("androidx.media3:media3-exoplayer:1.8.0")
+    implementation("androidx.media3:media3-exoplayer-hls:1.8.0")
+    implementation("androidx.media3:media3-ui:1.8.0")
+    implementation("androidx.media3:media3-datasource-okhttp:1.8.0")
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation(platform("androidx.compose:compose-bom:2025.04.01"))
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
 
 fun propOrEnv(propName: String, envName: String, defaultValue: String): String {
@@ -25,8 +48,8 @@ val updateManifestUrl = propOrEnv(
     "UPDATE_MANIFEST_URL",
     "https://github.com/$updateRepository/releases/latest/download/android-mobile-update.json"
 )
-val versionNameValue = propOrEnv("VERSION_NAME", "VERSION_NAME", "1.0.6")
-val versionCodeValue = propOrEnv("VERSION_CODE", "VERSION_CODE", "7").toIntOrNull() ?: 7
+val versionNameValue = propOrEnv("VERSION_NAME", "VERSION_NAME", "1.0.8")
+val versionCodeValue = propOrEnv("VERSION_CODE", "VERSION_CODE", "9").toIntOrNull() ?: 9
 val minSdkValue = propOrEnv("MIN_SDK", "MIN_SDK", "23").toIntOrNull() ?: 23
 
 fun escapeJavaString(value: String): String = value
@@ -50,8 +73,10 @@ android {
         targetSdk = 35
         versionCode = versionCodeValue
         versionName = versionNameValue
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("String", "BASE_URL", "\"${escapeJavaString(rawBaseUrl)}\"")
+        buildConfigField("boolean", "ENABLE_USB_DEBUGGING", (project.findProperty("ENABLE_USB_DEBUGGING") == "true").toString())
         buildConfigField(
             "String",
             "UPDATE_MANIFEST_URL",
@@ -66,6 +91,7 @@ android {
     }
 
     buildFeatures {
+        compose = true
         buildConfig = true
     }
 
@@ -73,6 +99,7 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    kotlinOptions { jvmTarget = "17" }
 
     signingConfigs {
         create("release") {
@@ -101,6 +128,14 @@ android {
             if (!storeFilePath.isNullOrBlank() && file(storeFilePath).exists()) {
                 signingConfig = signingConfigs.getByName("release")
             }
+        }
+    }
+}
+
+tasks.named("preBuild") {
+    doFirst {
+        check(file("src/main/assets/offline/index.html").isFile) {
+            "Build offline assets first: cd offline-web && npm ci --ignore-scripts && npm run build"
         }
     }
 }

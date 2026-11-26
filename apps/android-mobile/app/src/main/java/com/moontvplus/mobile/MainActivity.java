@@ -2,7 +2,9 @@ package com.moontvplus.mobile;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
-import android.app.Activity;
+import androidx.activity.ComponentActivity;
+import androidx.activity.OnBackPressedCallback;
+import android.app.AlertDialog;
 import android.app.DownloadManager;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
@@ -15,6 +17,8 @@ import android.net.http.SslError;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
 import android.view.View;
 import android.view.ViewGroup;
@@ -33,17 +37,21 @@ import android.webkit.URLUtil;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceError;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 import android.widget.Toast;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-public class MainActivity extends Activity {
+public class MainActivity extends ComponentActivity {
     private static final int FILE_CHOOSER_REQUEST_CODE = 1001;
     private static final int WEB_PERMISSION_REQUEST_CODE = 1002;
     private static final int STORAGE_PERMISSION_REQUEST_CODE = 1003;
@@ -59,6 +67,11 @@ public class MainActivity extends Activity {
     private int orientationBeforeFullscreen =
             ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
     private boolean fullscreenOrientationLocked;
+    private ConnectionPanel connectionPanel;
+    private boolean pageFailed;
+    private volatile boolean localOfflinePage;
+    private final Handler loadingHandler = new Handler(Looper.getMainLooper());
+    private final Runnable loadingTimeout = () -> showConnectionPanel("站点暂未加载完成，可先查看本机下载。");
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,10 +85,24 @@ public class MainActivity extends Activity {
         setContentView(root);
         installSystemBarInsets();
         setupWebView();
+        setupConnectionPanel();
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override public void handleOnBackPressed() {
+                if (customView != null) hideCustomView();
+                else if (webView != null && webView.canGoBack()) webView.goBack();
+                else {
+                    setEnabled(false);
+                    getOnBackPressedDispatcher().onBackPressed();
+                    setEnabled(true);
+                }
+            }
+        });
         updateManager = new UpdateManager(this);
         updateManager.start();
 
-        if (savedInstanceState == null || webView.restoreState(savedInstanceState) == null) {
+        if (getIntent().getBooleanExtra("showLegacyDownloads", false)) {
+            openLegacyDownloads();
+        } else if (savedInstanceState == null || webView.restoreState(savedInstanceState) == null) {
             webView.loadUrl(normalizeBaseUrl(BuildConfig.BASE_URL));
         }
     }
@@ -122,13 +149,54 @@ public class MainActivity extends Activity {
             serviceWorkerSettings.setBlockNetworkLoads(false);
         }
 
-        WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG);
+        WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG || BuildConfig.ENABLE_USB_DEBUGGING);
         webView.setWebViewClient(new MobileWebViewClient());
         webView.setWebChromeClient(new MobileWebChromeClient());
         webView.setDownloadListener(new MobileDownloadListener());
+        OfflineWebContent.install(this);
     }
 
     private final class AndroidAppBridge {
+        @JavascriptInterface
+        public void openDownloads() {
+            runOnUiThread(() -> { if (trustedPage()) startActivity(new Intent(MainActivity.this, DownloadsActivity.class)); });
+        }
+
+        @JavascriptInterface
+        public void openLocalVideo() {
+            runOnUiThread(() -> {
+                if (trustedPage()) startActivity(new Intent(MainActivity.this, DownloadsActivity.class).putExtra("showLocalFiles", true));
+            });
+        }
+
+        @JavascriptInterface
+        public void enqueueDownloads(String value) {
+            if (value == null || value.length() > 500000) return;
+            runOnUiThread(() -> {
+                if (!trustedPage()) return;
+                try {
+                    JSONArray tasks = new JSONArray(value);
+                    if (tasks.length() < 1 || tasks.length() > 50) throw new IllegalArgumentException("每次最多下载 50 集");
+                    for (int i = 0; i < tasks.length(); i++) {
+                        JSONObject task = tasks.getJSONObject(i);
+                        DownloadSafety.validateUrl(task.getString("url"));
+                        if (task.optString("title").length() > 300) throw new IllegalArgumentException("标题过长");
+                    }
+                    // 桥接对象对 iframe 也可见，因此开始下载必须经原生确认，且不返回私人任务数据。
+                    new AlertDialog.Builder(MainActivity.this).setTitle("安卓后台下载")
+                            .setMessage("添加 " + tasks.length() + " 个下载任务？\n" + tasks.getJSONObject(0).optString("title"))
+                            .setNegativeButton("取消", null).setPositiveButton("下载", (dialog, which) -> {
+                                try {
+                                    if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
+                                        requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1004);
+                                    for (int i = 0; i < tasks.length(); i++) OfflineDownloads.enqueue(MainActivity.this, tasks.getJSONObject(i));
+                                    startActivity(new Intent(MainActivity.this, DownloadsActivity.class));
+                                } catch (Exception error) { Toast.makeText(MainActivity.this, "创建下载失败，请重试", Toast.LENGTH_LONG).show(); }
+                            }).show();
+                } catch (Exception error) { Toast.makeText(MainActivity.this, "下载请求无效", Toast.LENGTH_LONG).show(); }
+            });
+        }
+
         @JavascriptInterface
         public void openCastSettings() {
             runOnUiThread(() -> {
@@ -149,6 +217,37 @@ public class MainActivity extends Activity {
         }
     }
 
+    private boolean trustedPage() { return webView != null && webView.getUrl() != null && isTrustedOrigin(Uri.parse(webView.getUrl())); }
+
+    private void setupConnectionPanel() {
+        connectionPanel = new ConnectionPanel(this,
+                () -> startActivity(new Intent(this, DownloadsActivity.class)),
+                this::openLegacyDownloads,
+                () -> webView.loadUrl(normalizeBaseUrl(BuildConfig.BASE_URL)));
+        root.addView(connectionPanel, new FrameLayout.LayoutParams(-1, -1));
+        showConnectionPanel("正在连接 LinTVPlus…");
+    }
+
+    private void showConnectionPanel(String message) {
+        if (connectionPanel == null) return;
+        connectionPanel.setMessage(message); connectionPanel.setVisibility(View.VISIBLE); connectionPanel.bringToFront();
+    }
+
+    @Override protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent); setIntent(intent);
+        if (intent.getBooleanExtra("showLegacyDownloads", false)) {
+            openLegacyDownloads();
+        } else {
+            webView.loadUrl(normalizeBaseUrl(BuildConfig.BASE_URL));
+        }
+    }
+
+    private void openLegacyDownloads() {
+        getIntent().removeExtra("showLegacyDownloads");
+        localOfflinePage = true;
+        webView.loadUrl(OfflineWebContent.url());
+    }
+
     private boolean openSettings(String action) {
         try {
             startActivity(new Intent(action));
@@ -159,6 +258,29 @@ public class MainActivity extends Activity {
     }
 
     private final class MobileWebViewClient extends WebViewClient {
+        @Override public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+            WebResourceResponse local = OfflineWebContent.response(MainActivity.this, request.getUrl());
+            if (local != null) return local;
+            return localOfflinePage && !request.isForMainFrame() ? OfflineWebContent.blocked() : null;
+        }
+        @Override public void onPageStarted(WebView view, String url, android.graphics.Bitmap icon) {
+            localOfflinePage = OfflineWebContent.isOfflineUrl(Uri.parse(url));
+            pageFailed = false;
+            showConnectionPanel(localOfflinePage ? "正在读取本机缓存…" : "正在连接 LinTVPlus…");
+            loadingHandler.removeCallbacks(loadingTimeout); loadingHandler.postDelayed(loadingTimeout, 20000);
+        }
+        @Override public void onPageFinished(WebView view, String url) {
+            loadingHandler.removeCallbacks(loadingTimeout);
+            if (!pageFailed) {
+                connectionPanel.setVisibility(View.GONE);
+            }
+        }
+        @Override public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+            if (request.isForMainFrame()) { pageFailed = true; showConnectionPanel("暂时无法连接站点，仍可查看本机下载。"); }
+        }
+        @Override public void onReceivedHttpError(WebView view, WebResourceRequest request, WebResourceResponse response) {
+            if (request.isForMainFrame() && response.getStatusCode() >= 400) { pageFailed = true; showConnectionPanel("站点暂不可用，仍可查看本机下载。"); }
+        }
         @Override
         public boolean shouldOverrideUrlLoading(
                 WebView view,
@@ -180,6 +302,8 @@ public class MainActivity extends Activity {
                 SslError error
         ) {
             handler.cancel();
+            pageFailed = true;
+            showConnectionPanel("站点证书验证失败，请检查网络和系统时间。");
         }
     }
 
@@ -620,17 +744,6 @@ public class MainActivity extends Activity {
     }
 
     @Override
-    public void onBackPressed() {
-        if (customView != null) {
-            hideCustomView();
-        } else if (webView != null && webView.canGoBack()) {
-            webView.goBack();
-        } else {
-            super.onBackPressed();
-        }
-    }
-
-    @Override
     protected void onResume() {
         super.onResume();
         if (webView != null) {
@@ -647,6 +760,7 @@ public class MainActivity extends Activity {
             updateManager.onPause();
         }
         if (webView != null) {
+            webView.evaluateJavascript("document.querySelectorAll('video,audio').forEach(media=>media.pause())", null);
             webView.onPause();
         }
         super.onPause();
@@ -654,6 +768,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        loadingHandler.removeCallbacksAndMessages(null);
         if (updateManager != null) {
             updateManager.stop();
             updateManager = null;

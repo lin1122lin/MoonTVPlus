@@ -5,6 +5,9 @@
  * 与任务/用户元信息混在一起。
  */
 
+import type { SavedTask } from './download-db';
+import { parsePartialCachePlaylist, selectPartialCachePrefix } from './partial-cache-playlist';
+
 export const INDEXEDDB_VIDEO_CACHE_DB_NAME = 'MoonTVPlusVideoCache';
 export const INDEXEDDB_VIDEO_CACHE_DB_VERSION = 1;
 export const INDEXEDDB_VIDEO_CACHE_ROUTE_PREFIX = '/__moontv_idb_video__';
@@ -55,6 +58,10 @@ export interface IndexedDBVideoPlaybackResult {
   mode?: 'service-worker' | 'blob';
   objectUrls?: string[];
   reason?: string;
+  partial?: boolean;
+  segmentCount?: number;
+  duration?: number;
+  firstMissingIndex?: number;
 }
 
 let dbPromise: Promise<IDBDatabase> | null = null;
@@ -726,5 +733,47 @@ export async function getIndexedDBVideoPlaybackUrl(
   } catch (error) {
     console.error('[IndexedDBVideo] 获取本地播放地址失败:', error);
     return { hasLocal: false, reason: String(error) };
+  }
+}
+
+export async function getIndexedDBPartialVideoPlaybackUrl(
+  task: SavedTask & { indexedDBCacheKey?: string },
+  isCurrent: () => boolean = () => true
+): Promise<IndexedDBVideoPlaybackResult> {
+  const objectUrls: string[] = [];
+  try {
+    if (!isCurrent()) throw new Error('播放已取消');
+    if (task.downloadMode !== 'indexeddb') return { hasLocal: false, reason: '任务不是 IndexedDB 缓存' };
+    const cacheKey = task.indexedDBCacheKey || (
+      task.source && task.videoId && task.episodeIndex !== undefined
+        ? buildIndexedDBVideoCacheKey(task.source, task.videoId, task.episodeIndex)
+        : `task::${task.id}`
+    );
+    const manifest = await getIndexedDBVideoManifestByCacheKey(cacheKey);
+    if (!isCurrent()) throw new Error('播放已取消');
+    if (manifest?.completed) return await createIndexedDBVideoBlobPlaybackUrl(cacheKey);
+    if (!task.m3u8Content) return { hasLocal: false, reason: '任务缺少播放列表，无法读取部分缓存' };
+    const playlist = parsePartialCachePlaylist(task.m3u8Content);
+    // Validate the range before reading storage or allocating object URLs.
+    selectPartialCachePrefix(playlist, task.rangeDownload, () => undefined);
+    const cachedUris = new Map<number, string>();
+    for (let index = task.rangeDownload.startSegment; index < task.rangeDownload.endSegment; index++) {
+      if (!isCurrent()) throw new Error('播放已取消');
+      const segment = await getIndexedDBVideoSegment(cacheKey, index);
+      if (!isCurrent()) throw new Error('播放已取消');
+      if (!(segment?.data instanceof Blob) || segment.data.size === 0) break;
+      const uri = URL.createObjectURL(segment.data);
+      objectUrls.push(uri);
+      cachedUris.set(index, uri);
+    }
+    const snapshot = selectPartialCachePrefix(playlist, task.rangeDownload, (index) => cachedUris.get(index));
+    if (!snapshot.segmentCount) return { hasLocal: false, reason: '下载范围开头尚无连续可播放缓存' };
+    const url = URL.createObjectURL(new Blob([snapshot.playlistContent], { type: 'application/vnd.apple.mpegurl' }));
+    objectUrls.push(url);
+    return { hasLocal: true, url, mode: 'blob', objectUrls, partial: true,
+      segmentCount: snapshot.segmentCount, duration: snapshot.duration, firstMissingIndex: snapshot.firstMissingIndex };
+  } catch (error) {
+    objectUrls.forEach((url) => URL.revokeObjectURL(url));
+    return { hasLocal: false, reason: error instanceof Error ? error.message : String(error) };
   }
 }

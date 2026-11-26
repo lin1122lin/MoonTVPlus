@@ -1,11 +1,12 @@
 'use client';
 
-import { Check, ChevronDown, Download, Play, Trash2, X } from 'lucide-react';
+import { Check, ChevronDown, Download, Play, RotateCcw, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { usePauseBackgroundMedia } from '@/hooks/usePauseBackgroundMedia';
-import { downloadDB, CompletedTask } from '@/lib/download-db';
+import { useDownload } from '@/contexts/DownloadContext';
+import { downloadDB, CompletedTask, SavedTask } from '@/lib/download-db';
 import {
   buildIndexedDBVideoCacheKey,
   getIndexedDBVideoManifestByEpisode,
@@ -37,7 +38,20 @@ export function DownloadManagementPanel({
   onClose,
 }: DownloadManagementPanelProps) {
   usePauseBackgroundMedia(isOpen);
+  const { tasks, startTask } = useDownload();
   const [completedTasks, setCompletedTasks] = useState<CompletedTask[]>([]);
+  const [savedTasks, setSavedTasks] = useState<SavedTask[]>([]);
+  const activeCachedTasks = useMemo(() => {
+    const key = (task: Pick<SavedTask, 'id' | 'source' | 'videoId' | 'episodeIndex'>) =>
+      task.source && task.videoId && task.episodeIndex !== undefined
+        ? buildIndexedDBVideoCacheKey(task.source, task.videoId, task.episodeIndex) : `task::${task.id}`;
+    // Export and filesystem records do not prove an app-playable IndexedDB cache exists.
+    const completedKeys = new Set(completedTasks.filter((task) => task.downloadMode === 'indexeddb').map(key));
+    const liveKeys = new Set(tasks.map(key));
+    return [...tasks.map((task) => ({ ...task, createdAt: task.createdAt ?? Date.now() })),
+      ...savedTasks.filter((task) => !liveKeys.has(key(task)))]
+      .filter((task) => task.downloadMode === 'indexeddb' && task.status !== 'done' && !completedKeys.has(key(task)));
+  }, [completedTasks, savedTasks, tasks]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [expandedGroupKeys, setExpandedGroupKeys] = useState<Set<string>>(
     new Set()
@@ -47,7 +61,8 @@ export function DownloadManagementPanel({
   const [mounted, setMounted] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [playingTask, setPlayingTask] = useState<CompletedTask | null>(null);
-  const closePlayer = useCallback(() => setPlayingTask(null), []);
+  const [partialTask, setPartialTask] = useState<SavedTask | null>(null);
+  const closePlayer = useCallback(() => { setPlayingTask(null); setPartialTask(null); }, []);
 
   useEffect(() => {
     setMounted(true);
@@ -59,14 +74,16 @@ export function DownloadManagementPanel({
       window.addEventListener('downloads:completed', loadCompletedTasks);
     } else {
       setPlayingTask(null);
+      setPartialTask(null);
     }
     return () => window.removeEventListener('downloads:completed', loadCompletedTasks);
   }, [isOpen]);
 
   const loadCompletedTasks = async () => {
     try {
-      const tasks = await downloadDB.getCompletedTasks();
-      setCompletedTasks(tasks);
+      const [completed, active] = await Promise.all([downloadDB.getCompletedTasks(), downloadDB.getActiveTasks()]);
+      setCompletedTasks(completed);
+      setSavedTasks(active);
     } catch (error) {
       console.error('加载已完成任务失败:', error);
     }
@@ -627,7 +644,42 @@ export function DownloadManagementPanel({
 
             {/* Content */}
             <div className='flex-1 overflow-y-auto p-3 sm:p-4'>
-              {completedTasks.length === 0 ? (
+              {activeCachedTasks.length > 0 && (
+                <section className='mb-4 border-b border-gray-200 pb-4 dark:border-gray-700' aria-label='未完成的应用内缓存'>
+                  <h3 className='mb-2 text-sm font-medium text-gray-800 dark:text-gray-200'>未完成的应用内缓存</h3>
+                  {activeCachedTasks.map((task) => {
+                    const allPiecesSuccess = task.rangeDownload.targetSegment > 0 &&
+                      task.finishList.slice(task.rangeDownload.startSegment, task.rangeDownload.endSegment)
+                        .filter((piece) => piece.status === 'is-success').length === task.rangeDownload.targetSegment;
+                    const errorMessage = task.errorMessage;
+                    return (
+                      <div key={task.id} className='border-b border-gray-100 py-3 last:border-0 dark:border-gray-800'>
+                        <h4 className='break-words text-sm font-medium text-gray-800 dark:text-gray-200'>{task.title}</h4>
+                        <p className='mt-1 text-xs text-gray-500 dark:text-gray-400'>
+                          {task.status === 'downloading' && task.finishNum === task.rangeDownload.targetSegment && task.finishNum > 0
+                            ? '正在整理缓存' : task.status === 'error' ? '下载错误' : task.status === 'pause' ? '已暂停' : task.status === 'ready' ? '等待中' : '下载中'}
+                          {' · '}{task.finishNum} / {task.rangeDownload.targetSegment} 片段
+                        </p>
+                        {errorMessage && <p role='alert' className='mt-1 break-words text-sm text-red-600 dark:text-red-400'>{errorMessage}</p>}
+                        <div className='mt-2 flex flex-wrap gap-2'>
+                          <button type='button' title='播放已缓存' aria-label={`播放已缓存：${task.title}`}
+                            onClick={() => { setPlayingTask(null); setPartialTask({ ...task, createdAt: task.createdAt ?? Date.now() }); }}
+                            className='inline-flex min-h-[48px] min-w-[48px] items-center gap-2 rounded bg-green-600 px-3 text-sm text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400'>
+                            <Play className='h-4 w-4' />播放已缓存
+                          </button>
+                          {task.status === 'error' && allPiecesSuccess && (
+                            <button type='button' title='重试完成' onClick={() => startTask(task.id)}
+                              className='inline-flex min-h-[48px] min-w-[48px] items-center gap-2 rounded bg-sky-600 px-3 text-sm text-white hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-400'>
+                              <RotateCcw className='h-4 w-4' />重试完成
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </section>
+              )}
+              {completedTasks.length === 0 && activeCachedTasks.length === 0 ? (
                 <div className='text-center py-12 text-gray-500 dark:text-gray-400'>
                   暂无下载记录
                 </div>
@@ -777,8 +829,9 @@ export function DownloadManagementPanel({
                                   </div>
                                   {task.downloadMode === 'indexeddb' && (
                                     <button type='button'
-                                      onClick={(event) => { event.stopPropagation(); setPlayingTask(task); }}
-                                      className='mt-2 inline-flex min-h-[44px] items-center gap-2 rounded bg-green-600 px-3 text-sm text-white hover:bg-green-700'
+                                      onClick={(event) => { event.stopPropagation(); setPartialTask(null); setPlayingTask(task); }}
+                                      title={`播放已下载的第 ${task.episodeIndex + 1} 集`}
+                                      className='mt-2 inline-flex min-h-[48px] min-w-[48px] items-center gap-2 rounded bg-green-600 px-3 text-sm text-white hover:bg-green-700'
                                       aria-label={`播放已下载的第 ${task.episodeIndex + 1} 集`}>
                                       <Play className='h-4 w-4' />播放
                                     </button>
@@ -801,6 +854,7 @@ export function DownloadManagementPanel({
             </div>
           </div>
           {playingTask && <LocalDownloadPlayer task={playingTask} onClose={closePlayer} />}
+          {partialTask && <LocalDownloadPlayer partialTask={partialTask} onClose={closePlayer} />}
         </div>,
         document.body
       )}
