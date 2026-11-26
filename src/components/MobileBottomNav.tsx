@@ -2,11 +2,25 @@
 
 'use client';
 
-import { Blend, Cat, Clover, Container, Film, Globe, Home, Star, Tv, TvMinimalPlay, Users } from 'lucide-react';
+import {
+  Blend,
+  Cat,
+  Clover,
+  Container,
+  Download,
+  Film,
+  Globe,
+  Home,
+  Star,
+  Tv,
+  TvMinimalPlay,
+  Users,
+} from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 
+import { DownloadManagementPanel } from './DownloadManagementPanel';
 import { useWatchRoomContextSafe } from './WatchRoomProvider';
 
 interface MobileBottomNavProps {
@@ -20,6 +34,7 @@ const MobileBottomNav = ({ activePath }: MobileBottomNavProps) => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const watchRoomContext = useWatchRoomContextSafe();
+  const [downloadsOpen, setDownloadsOpen] = useState(false);
 
   // 直接使用当前路由状态，确保立即响应路由变化
   const getCurrentFullPath = () => {
@@ -54,11 +69,11 @@ const MobileBottomNav = ({ activePath }: MobileBottomNavProps) => {
       label: '综艺',
       href: '/douban?type=show',
     },
-      {
-        icon: TvMinimalPlay,
-        label: '电视直播',
-        href: '/live',
-      },
+    {
+      icon: TvMinimalPlay,
+      label: '电视直播',
+      href: '/live',
+    },
   ]);
 
   useEffect(() => {
@@ -162,50 +177,73 @@ const MobileBottomNav = ({ activePath }: MobileBottomNavProps) => {
   };
 
   return (
-    <nav
-      className='md:hidden fixed left-0 right-0 z-[600] bg-white/90 backdrop-blur-xl border-t border-gray-200/50 overflow-hidden dark:bg-gray-900/80 dark:border-gray-700/50'
-      style={{
-        /* 紧贴视口底部，同时在内部留出安全区高度 */
-        bottom: 0,
-        paddingBottom: 'env(safe-area-inset-bottom)',
-        minHeight: 'calc(3.5rem + env(safe-area-inset-bottom))',
-      }}
-    >
-      <ul className='flex items-center overflow-x-auto scrollbar-hide'>
-        {navItems.map((item) => {
-          const active = isActive(item.href);
-          return (
-            <li
-              key={item.href}
-              className='flex-shrink-0'
-              style={{ width: '20vw', minWidth: '20vw' }}
-            >
-              <Link
-                href={item.href}
-                prefetch={false}
-                className='flex flex-col items-center justify-center w-full h-14 gap-1 text-xs'
-              >
-                <item.icon
-                  className={`h-6 w-6 ${active
-                    ? 'text-green-600 dark:text-green-400'
-                    : 'text-gray-500 dark:text-gray-400'
-                    }`}
-                />
-                <span
-                  className={
-                    active
-                      ? 'text-green-600 dark:text-green-400'
-                      : 'text-gray-600 dark:text-gray-300'
-                  }
+    <>
+      <nav
+        className='md:hidden fixed left-0 right-0 z-[600] bg-white/90 backdrop-blur-xl border-t border-gray-200/50 overflow-hidden dark:bg-gray-900/80 dark:border-gray-700/50'
+        style={{
+          /* 紧贴视口底部，同时在内部留出安全区高度 */
+          bottom: 0,
+          paddingBottom: 'env(safe-area-inset-bottom)',
+          minHeight: 'calc(3.5rem + env(safe-area-inset-bottom))',
+        }}
+      >
+        <ul className='flex items-center overflow-x-auto scrollbar-hide'>
+          {navItems.map((item) => {
+            const active = isActive(item.href);
+            return (
+              <Fragment key={item.href}>
+                <li
+                  className='flex-shrink-0'
+                  style={{ width: '20vw', minWidth: '20vw' }}
                 >
-                  {item.label}
-                </span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
+                  <Link
+                    href={item.href}
+                    prefetch={false}
+                    className='flex flex-col items-center justify-center w-full h-14 gap-1 text-xs'
+                  >
+                    <item.icon
+                      className={`h-6 w-6 ${
+                        active
+                          ? 'text-green-600 dark:text-green-400'
+                          : 'text-gray-500 dark:text-gray-400'
+                      }`}
+                    />
+                    <span
+                      className={
+                        active
+                          ? 'text-green-600 dark:text-green-400'
+                          : 'text-gray-600 dark:text-gray-300'
+                      }
+                    >
+                      {item.label}
+                    </span>
+                  </Link>
+                </li>
+                {item.href === '/' && (
+                  <li
+                    className='flex-shrink-0'
+                    style={{ width: '20vw', minWidth: '20vw' }}
+                  >
+                    <button
+                      type='button'
+                      onClick={() => setDownloadsOpen(true)}
+                      className='flex h-14 w-full flex-col items-center justify-center gap-1 text-xs text-gray-600 dark:text-gray-300'
+                    >
+                      <Download className='h-6 w-6 text-gray-500 dark:text-gray-400' />
+                      <span>我的下载</span>
+                    </button>
+                  </li>
+                )}
+              </Fragment>
+            );
+          })}
+        </ul>
+      </nav>
+      <DownloadManagementPanel
+        isOpen={downloadsOpen}
+        onClose={() => setDownloadsOpen(false)}
+      />
+    </>
   );
 };
 
