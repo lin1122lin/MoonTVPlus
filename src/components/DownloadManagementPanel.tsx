@@ -4,6 +4,7 @@ import { Check, ChevronDown, Download, Play, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 
+import { usePauseBackgroundMedia } from '@/hooks/usePauseBackgroundMedia';
 import { downloadDB, CompletedTask } from '@/lib/download-db';
 import {
   buildIndexedDBVideoCacheKey,
@@ -35,6 +36,7 @@ export function DownloadManagementPanel({
   isOpen,
   onClose,
 }: DownloadManagementPanelProps) {
+  usePauseBackgroundMedia(isOpen);
   const [completedTasks, setCompletedTasks] = useState<CompletedTask[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [expandedGroupKeys, setExpandedGroupKeys] = useState<Set<string>>(
