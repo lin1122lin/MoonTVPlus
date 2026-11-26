@@ -28,6 +28,12 @@ public final class DownloadsActivity extends Activity {
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
         LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(24, 56, 24, 32);
+        int padding = (int) (16 * getResources().getDisplayMetrics().density);
+        root.setOnApplyWindowInsetsListener((view, insets) -> {
+            view.setPadding(padding + insets.getSystemWindowInsetLeft(), padding + insets.getSystemWindowInsetTop(),
+                    padding + insets.getSystemWindowInsetRight(), padding + insets.getSystemWindowInsetBottom());
+            return insets;
+        });
         root.setBackgroundColor(Color.rgb(20, 20, 20));
         TextView title = text("我的下载 · 安卓后台下载", 20); root.addView(title);
         LinearLayout navigation = new LinearLayout(this);
@@ -36,6 +42,7 @@ public final class DownloadsActivity extends Activity {
         root.addView(navigation);
         ScrollView scroll = new ScrollView(this); rows = new LinearLayout(this); rows.setOrientation(LinearLayout.VERTICAL);
         scroll.addView(rows); root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1)); setContentView(root);
+        root.requestApplyInsets();
         OfflineDownloads.manager(this);
     }
     @Override public void onResume() { super.onResume(); handler.post(refresh); }
