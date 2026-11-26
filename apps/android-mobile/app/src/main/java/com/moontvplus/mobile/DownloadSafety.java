@@ -6,6 +6,9 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 
 final class DownloadSafety {
+    static boolean isLocalMediaName(String name) {
+        return name != null && ("playlist.m3u8".equals(name) || "key.key".equals(name) || name.matches("segment_\\d+\\.ts"));
+    }
     static URI validateUrl(String value) {
         if (value == null || value.length() > 8192) throw new IllegalArgumentException("视频地址无效");
         URI uri = URI.create(value);

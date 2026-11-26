@@ -9,6 +9,8 @@ on:
       - '.github/workflows/android-mobile.yml'
       - 'apps/android-mobile/**'
       - 'public/logo.png'
+      - 'src/lib/indexeddb-video-cache.ts'
+      - 'src/lib/partial-cache-playlist.ts'
   workflow_dispatch:
     inputs:
       base_url:
@@ -24,12 +26,12 @@ on:
       version_name:
         description: 'Application version name'
         required: false
-        default: '1.0.7'
+        default: '1.0.8'
         type: string
       version_code:
         description: 'Positive integer application version code'
         required: false
-        default: '8'
+        default: '9'
         type: string
       publish_release:
         description: 'Publish a signed GitHub Release for in-app updates'
@@ -44,7 +46,7 @@ on:
       release_notes:
         description: 'Release notes shown in the Android update dialog'
         required: false
-        default: '加入应用内更新检查、下载校验和安装流程。'
+        default: '新增安卓息屏下载、离线缓存播放与本机文件入口。'
         type: string
       mandatory_update:
         description: 'Prevent dismissing the in-app update dialog'
@@ -78,6 +80,20 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Setup offline UI build
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/android-mobile/offline-web/package-lock.json
+
+      - name: Build bundled legacy-cache reader
+        working-directory: apps/android-mobile/offline-web
+        run: |
+          npm ci --ignore-scripts
+          npm test
+          npm run build
+
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
@@ -102,8 +118,8 @@ jobs:
           INPUT_VERSION_CODE: ${{ inputs.version_code }}
           INPUT_VERSION_NAME: ${{ inputs.version_name }}
         run: |
-          VERSION_NAME="${INPUT_VERSION_NAME:-1.0.7}"
-          VERSION_CODE="${INPUT_VERSION_CODE:-8}"
+          VERSION_NAME="${INPUT_VERSION_NAME:-1.0.8}"
+          VERSION_CODE="${INPUT_VERSION_CODE:-9}"
 
           if [[ ! "$VERSION_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
             echo "Invalid version name: $VERSION_NAME" >&2
@@ -163,7 +179,7 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_MOBILE_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_MOBILE_KEY_PASSWORD }}
         run: |
-          gradle test${{ steps.signing.outputs.build_type_task }}UnitTest assemble${{ steps.signing.outputs.build_type_task }} \
+          gradle test${{ steps.signing.outputs.build_type_task }}UnitTest assemble${{ steps.signing.outputs.build_type_task }} assembleDebugAndroidTest \
             -PENABLE_USB_DEBUGGING="${{ inputs.diagnostic || false }}" \
             -PBASE_URL="$BASE_URL" \
             -PAPP_NAME="$APP_NAME" \

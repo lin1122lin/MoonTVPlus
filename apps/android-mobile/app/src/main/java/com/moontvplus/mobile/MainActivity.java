@@ -2,7 +2,8 @@ package com.moontvplus.mobile;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
-import android.app.Activity;
+import androidx.activity.ComponentActivity;
+import androidx.activity.OnBackPressedCallback;
 import android.app.AlertDialog;
 import android.app.DownloadManager;
 import android.content.ActivityNotFoundException;
@@ -43,9 +44,6 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 import android.widget.Toast;
-import android.widget.Button;
-import android.widget.LinearLayout;
-import android.widget.TextView;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -53,7 +51,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-public class MainActivity extends Activity {
+public class MainActivity extends ComponentActivity {
     private static final int FILE_CHOOSER_REQUEST_CODE = 1001;
     private static final int WEB_PERMISSION_REQUEST_CODE = 1002;
     private static final int STORAGE_PERMISSION_REQUEST_CODE = 1003;
@@ -69,10 +67,9 @@ public class MainActivity extends Activity {
     private int orientationBeforeFullscreen =
             ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
     private boolean fullscreenOrientationLocked;
-    private LinearLayout connectionPanel;
-    private TextView connectionMessage;
+    private ConnectionPanel connectionPanel;
     private boolean pageFailed;
-    private boolean showLegacyDownloads;
+    private volatile boolean localOfflinePage;
     private final Handler loadingHandler = new Handler(Looper.getMainLooper());
     private final Runnable loadingTimeout = () -> showConnectionPanel("站点暂未加载完成，可先查看本机下载。");
 
@@ -89,11 +86,23 @@ public class MainActivity extends Activity {
         installSystemBarInsets();
         setupWebView();
         setupConnectionPanel();
-        showLegacyDownloads = getIntent().getBooleanExtra("showLegacyDownloads", false);
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override public void handleOnBackPressed() {
+                if (customView != null) hideCustomView();
+                else if (webView != null && webView.canGoBack()) webView.goBack();
+                else {
+                    setEnabled(false);
+                    getOnBackPressedDispatcher().onBackPressed();
+                    setEnabled(true);
+                }
+            }
+        });
         updateManager = new UpdateManager(this);
         updateManager.start();
 
-        if (savedInstanceState == null || webView.restoreState(savedInstanceState) == null) {
+        if (getIntent().getBooleanExtra("showLegacyDownloads", false)) {
+            openLegacyDownloads();
+        } else if (savedInstanceState == null || webView.restoreState(savedInstanceState) == null) {
             webView.loadUrl(normalizeBaseUrl(BuildConfig.BASE_URL));
         }
     }
@@ -144,12 +153,20 @@ public class MainActivity extends Activity {
         webView.setWebViewClient(new MobileWebViewClient());
         webView.setWebChromeClient(new MobileWebChromeClient());
         webView.setDownloadListener(new MobileDownloadListener());
+        OfflineWebContent.install(this);
     }
 
     private final class AndroidAppBridge {
         @JavascriptInterface
         public void openDownloads() {
             runOnUiThread(() -> { if (trustedPage()) startActivity(new Intent(MainActivity.this, DownloadsActivity.class)); });
+        }
+
+        @JavascriptInterface
+        public void openLocalVideo() {
+            runOnUiThread(() -> {
+                if (trustedPage()) startActivity(new Intent(MainActivity.this, DownloadsActivity.class).putExtra("showLocalFiles", true));
+            });
         }
 
         @JavascriptInterface
@@ -203,38 +220,32 @@ public class MainActivity extends Activity {
     private boolean trustedPage() { return webView != null && webView.getUrl() != null && isTrustedOrigin(Uri.parse(webView.getUrl())); }
 
     private void setupConnectionPanel() {
-        connectionPanel = new LinearLayout(this);
-        connectionPanel.setOrientation(LinearLayout.VERTICAL);
-        connectionPanel.setGravity(android.view.Gravity.CENTER);
-        connectionPanel.setPadding(32, 80, 32, 32);
-        connectionPanel.setBackgroundColor(Color.BLACK);
-        connectionMessage = new TextView(this); connectionMessage.setTextColor(Color.WHITE); connectionMessage.setTextSize(18);
-        connectionMessage.setGravity(android.view.Gravity.CENTER); connectionPanel.addView(connectionMessage);
-        Button downloads = new Button(this); downloads.setText("我的下载（本机）");
-        downloads.setOnClickListener(view -> startActivity(new Intent(this, DownloadsActivity.class))); connectionPanel.addView(downloads);
-        Button retry = new Button(this); retry.setText("重试连接");
-        retry.setOnClickListener(view -> webView.loadUrl(normalizeBaseUrl(BuildConfig.BASE_URL))); connectionPanel.addView(retry);
+        connectionPanel = new ConnectionPanel(this,
+                () -> startActivity(new Intent(this, DownloadsActivity.class)),
+                this::openLegacyDownloads,
+                () -> webView.loadUrl(normalizeBaseUrl(BuildConfig.BASE_URL)));
         root.addView(connectionPanel, new FrameLayout.LayoutParams(-1, -1));
         showConnectionPanel("正在连接 LinTVPlus…");
     }
 
     private void showConnectionPanel(String message) {
         if (connectionPanel == null) return;
-        connectionMessage.setText(message); connectionPanel.setVisibility(View.VISIBLE); connectionPanel.bringToFront();
+        connectionPanel.setMessage(message); connectionPanel.setVisibility(View.VISIBLE); connectionPanel.bringToFront();
     }
 
     @Override protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent); setIntent(intent);
         if (intent.getBooleanExtra("showLegacyDownloads", false)) {
-            showLegacyDownloads = true;
-            if (trustedPage()) openLegacyDownloads();
-            else webView.loadUrl(normalizeBaseUrl(BuildConfig.BASE_URL));
+            openLegacyDownloads();
+        } else {
+            webView.loadUrl(normalizeBaseUrl(BuildConfig.BASE_URL));
         }
     }
 
     private void openLegacyDownloads() {
-        showLegacyDownloads = false;
-        webView.evaluateJavascript("sessionStorage.setItem('lintvplusOpenLegacyDownloads','1');window.dispatchEvent(new Event('lintvplus:legacy-downloads'))", null);
+        getIntent().removeExtra("showLegacyDownloads");
+        localOfflinePage = true;
+        webView.loadUrl(OfflineWebContent.url());
     }
 
     private boolean openSettings(String action) {
@@ -247,16 +258,21 @@ public class MainActivity extends Activity {
     }
 
     private final class MobileWebViewClient extends WebViewClient {
+        @Override public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+            WebResourceResponse local = OfflineWebContent.response(MainActivity.this, request.getUrl());
+            if (local != null) return local;
+            return localOfflinePage && !request.isForMainFrame() ? OfflineWebContent.blocked() : null;
+        }
         @Override public void onPageStarted(WebView view, String url, android.graphics.Bitmap icon) {
+            localOfflinePage = OfflineWebContent.isOfflineUrl(Uri.parse(url));
             pageFailed = false;
-            showConnectionPanel("正在连接 LinTVPlus…");
+            showConnectionPanel(localOfflinePage ? "正在读取本机缓存…" : "正在连接 LinTVPlus…");
             loadingHandler.removeCallbacks(loadingTimeout); loadingHandler.postDelayed(loadingTimeout, 20000);
         }
         @Override public void onPageFinished(WebView view, String url) {
             loadingHandler.removeCallbacks(loadingTimeout);
             if (!pageFailed) {
                 connectionPanel.setVisibility(View.GONE);
-                if (showLegacyDownloads && trustedPage()) openLegacyDownloads();
             }
         }
         @Override public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
@@ -725,17 +741,6 @@ public class MainActivity extends Activity {
     protected void onSaveInstanceState(Bundle outState) {
         webView.saveState(outState);
         super.onSaveInstanceState(outState);
-    }
-
-    @Override
-    public void onBackPressed() {
-        if (customView != null) {
-            hideCustomView();
-        } else if (webView != null && webView.canGoBack()) {
-            webView.goBack();
-        } else {
-            super.onBackPressed();
-        }
     }
 
     @Override

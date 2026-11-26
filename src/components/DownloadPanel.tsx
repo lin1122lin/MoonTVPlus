@@ -1,16 +1,22 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import { Play, RotateCcw } from 'lucide-react';
+import React, { useCallback, useMemo, useState } from 'react';
+
+import type { SavedTask } from '@/lib/download-db';
 
 import { M3U8DownloadTask, M3U8SegmentLogStatus } from '@/lib/m3u8-downloader';
 
 import { useDownload } from '@/contexts/DownloadContext';
 import { usePauseBackgroundMedia } from '@/hooks/usePauseBackgroundMedia';
+import { LocalDownloadPlayer } from './LocalDownloadPlayer';
 
 export function DownloadPanel() {
   const { tasks, showDownloadPanel, setShowDownloadPanel, startTask, pauseTask, cancelTask, retryFailedSegments, getProgress } = useDownload();
   usePauseBackgroundMedia(showDownloadPanel);
   const [logTaskId, setLogTaskId] = useState<string | null>(null);
+  const [partialTask, setPartialTask] = useState<SavedTask | null>(null);
+  const closePlayer = useCallback(() => setPartialTask(null), []);
   const [logFilter, setLogFilter] = useState<'all' | M3U8SegmentLogStatus>('all');
 
   const logTask = useMemo(
@@ -161,6 +167,10 @@ export function DownloadPanel() {
           ) : (
             tasks.map((task) => {
               const progress = getProgress(task.id);
+              const allPiecesSuccess = task.rangeDownload.targetSegment > 0 &&
+                task.finishList.slice(task.rangeDownload.startSegment, task.rangeDownload.endSegment)
+                  .filter((piece) => piece.status === 'is-success').length === task.rangeDownload.targetSegment;
+              const errorMessage = task.errorMessage;
               return (
                 <div
                   key={task.id}
@@ -176,7 +186,8 @@ export function DownloadPanel() {
                     </div>
                     <div className='flex shrink-0 items-center gap-2'>
                       <span className={`text-xs font-medium ${getStatusColor(task.status)}`}>
-                        {getStatusText(task.status)}
+                        {task.status === 'downloading' && task.finishNum === task.rangeDownload.targetSegment && task.finishNum > 0
+                          ? '正在整理缓存' : getStatusText(task.status)}
                       </span>
                       <span className='rounded-md border border-gray-200 px-2 py-0.5 text-xs text-gray-500 dark:border-slate-700 dark:text-slate-400'>
                         {task.type}
@@ -212,6 +223,7 @@ export function DownloadPanel() {
                   </div>
 
                   {/* 错误信息 */}
+                  {errorMessage && <p role='alert' className='mb-3 break-words text-sm text-rose-600 dark:text-rose-300'>{errorMessage}</p>}
                   {task.errorNum > 0 && (
                     <div className='mb-3 flex items-center justify-between rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 dark:border-rose-400/30 dark:bg-rose-400/10'>
                       <div className='text-xs text-rose-600 dark:text-rose-300' role='alert'>
@@ -228,6 +240,13 @@ export function DownloadPanel() {
 
                   {/* 操作按钮 */}
                   <div className='flex flex-wrap items-center gap-2'>
+                    {task.downloadMode === 'indexeddb' && task.status !== 'done' && (
+                      <button type='button' title='播放已缓存' aria-label='播放已缓存'
+                        onClick={() => setPartialTask({ ...task, createdAt: task.createdAt ?? Date.now() })}
+                        className='flex min-h-[48px] min-w-[48px] items-center gap-2 rounded bg-green-600 px-3 text-sm text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400'>
+                        <Play className='h-4 w-4' />播放已缓存
+                      </button>
+                    )}
                     <button
                       onClick={() => {
                         setLogTaskId(task.id);
@@ -261,13 +280,11 @@ export function DownloadPanel() {
                     {(task.status === 'pause' || task.status === 'ready' || task.status === 'error') && (
                       <button
                         onClick={() => startTask(task.id)}
-                        className='flex cursor-pointer items-center gap-1 rounded-lg bg-sky-500 px-3 py-1.5 text-xs font-medium text-white transition-colors duration-200 hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-400'
+                        title={task.status === 'error' && allPiecesSuccess ? '重试完成' : task.status === 'error' ? '重试' : '开始'}
+                        className='flex min-h-[48px] min-w-[48px] cursor-pointer items-center gap-1 rounded-lg bg-sky-500 px-3 py-1.5 text-xs font-medium text-white transition-colors duration-200 hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-400'
                       >
-                        <svg className='h-4 w-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-                          <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z' />
-                          <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M21 12a9 9 0 11-18 0 9 9 0 0118 0z' />
-                        </svg>
-                        {task.status === 'error' ? '重试' : '开始'}
+                        {task.status === 'error' ? <RotateCcw className='h-4 w-4' /> : <Play className='h-4 w-4' />}
+                        {task.status === 'error' ? allPiecesSuccess ? '重试完成' : '重试' : '开始'}
                       </button>
                     )}
 
@@ -300,6 +317,7 @@ export function DownloadPanel() {
         )}
       </div>
 
+      {partialTask && <LocalDownloadPlayer partialTask={partialTask} onClose={closePlayer} />}
       {logTask && (
         <div className='fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 p-3 backdrop-blur-sm sm:p-6'>
           <div className='flex max-h-[82vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-950'>

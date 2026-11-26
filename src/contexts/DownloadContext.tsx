@@ -1,10 +1,11 @@
 'use client';
 
-import React, { createContext, useCallback, useContext, useState, useEffect } from 'react';
+import React, { createContext, useCallback, useContext, useState, useEffect, useRef } from 'react';
 
 import { M3U8Downloader, M3U8DownloadTask } from '@/lib/m3u8-downloader';
 import Toast from '@/components/Toast';
 import { downloadDB } from '@/lib/download-db';
+import type { SavedTask } from '@/lib/download-db';
 import { getPreferredDownloadMode } from '@/lib/download-preferences';
 import { androidDownloadsSelected, enqueueAndroidDownloads } from '@/lib/android-downloads';
 import {
@@ -45,6 +46,9 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
   const [showDownloadPanel, setShowDownloadPanel] = useState(false);
   const [startingTaskIds, setStartingTaskIds] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const restoringRef = useRef(true);
+  const restoreStartedRef = useRef(false);
+  const pendingRestoresRef = useRef(new Map<string, SavedTask>());
 
   // 自动启动下一个等待的任务
   const startNextPendingTask = useCallback((currentDownloader: M3U8Downloader) => {
@@ -139,6 +143,8 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
     },
     onError: (task, error) => {
       console.error('下载错误:', error);
+      task.errorMessage = error;
+      setToast({ message: `${task.title}: ${error}`, type: 'error' });
       setTasks(downloader.getAllTasks());
       // 保存任务状态
       saveTasks(downloader.getAllTasks());
@@ -149,12 +155,12 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
 
   // 保存任务到 IndexedDB
   const saveTasks = useCallback(async (tasks: M3U8DownloadTask[]) => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || restoringRef.current) return;
 
     try {
       // 只保存必要的信息，不保存 ArrayBuffer 等无法序列化的数据
       // browser 模式的已完成任务不需要保存
-      const tasksToSave = tasks
+      const tasksToSave: SavedTask[] = tasks
         .filter(task => {
           // 过滤掉 browser 模式的已完成任务
           if (task.downloadMode === 'browser' && task.status === 'done') {
@@ -168,6 +174,7 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
           title: task.title,
           type: task.type,
           status: task.status,
+          errorMessage: task.errorMessage,
           finishList: task.finishList,
           downloadIndex: task.downloadIndex,
           finishNum: task.finishNum,
@@ -182,7 +189,9 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
           segmentLogs: task.segmentLogs,
         }));
 
-      await downloadDB.saveActiveTasks(tasksToSave);
+      const records = new Map(pendingRestoresRef.current);
+      tasksToSave.forEach(task => records.set(task.id, task));
+      await downloadDB.saveActiveTasks(Array.from(records.values()));
     } catch (error) {
       console.error('保存任务失败:', error);
     }
@@ -190,11 +199,15 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
 
   // 从 IndexedDB 恢复任务
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || restoreStartedRef.current) return;
+    restoreStartedRef.current = true;
 
     const restoreTasks = async () => {
+      let loaded = false;
       try {
         const savedTasks = await downloadDB.getActiveTasks();
+        pendingRestoresRef.current = new Map(savedTasks.map(task => [task.id, task]));
+        loaded = true;
         if (!savedTasks || savedTasks.length === 0) return;
 
         //禁止SzeMeng76抄袭狗抄袭
@@ -264,7 +277,7 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
           // 只恢复 filesystem/indexeddb 模式的未完成任务
           if (
             (savedTask.downloadMode === 'filesystem' || savedTask.downloadMode === 'indexeddb') &&
-            (savedTask.status === 'downloading' || savedTask.status === 'pause' || savedTask.status === 'ready')
+            (savedTask.status === 'downloading' || savedTask.status === 'pause' || savedTask.status === 'ready' || savedTask.status === 'error')
           ) {
             try {
               const taskId = await downloader.createTask(
@@ -275,6 +288,11 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
                   source: savedTask.source,
                   videoId: savedTask.videoId,
                   episodeIndex: savedTask.episodeIndex,
+                },
+                {
+                  id: savedTask.id,
+                  createdAt: savedTask.createdAt,
+                  m3u8Content: savedTask.m3u8Content,
                 }
               );
 
@@ -282,10 +300,15 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
               if (task) {
                 // 恢复任务状态
                 task.status = savedTask.status === 'downloading' ? 'pause' : savedTask.status; // 将 downloading 改为 pause
-                task.finishList = savedTask.finishList;
+                task.finishList = savedTask.finishList.map(item => ({
+                  ...item,
+                  status: item.status === 'is-downloading' ? '' as const : item.status,
+                }));
+                task.errorMessage = savedTask.errorMessage;
                 task.downloadIndex = savedTask.downloadIndex;
-                task.finishNum = savedTask.finishNum;
-                task.errorNum = savedTask.errorNum;
+                const segments = task.finishList.slice(savedTask.rangeDownload.startSegment, savedTask.rangeDownload.endSegment);
+                task.finishNum = segments.filter(item => item.status === 'is-success').length;
+                task.errorNum = segments.filter(item => item.status === 'is-error').length;
                 task.downloadMode = savedTask.downloadMode;
                 task.rangeDownload = savedTask.rangeDownload;
                 task.segmentLogs = savedTask.segmentLogs || [];
@@ -301,11 +324,11 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
                 if (savedTask.downloadMode === 'filesystem' && dirHandle) {
                   task.filesystemDirHandle = dirHandle;
                 }
+                pendingRestoresRef.current.delete(savedTask.id);
               }
             } catch (error) {
               console.error('恢复任务失败:', savedTask.title, error);
-              // 恢复失败的任务也标记为删除
-              tasksToDelete.push(savedTask.id);
+              // 保留暂时无法恢复的元数据，后续 bulk save 也不能覆盖掉它。
             }
           } else {
             // 其他状态的任务标记为删除
@@ -316,17 +339,22 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
         // 批量删除无效任务
         if (tasksToDelete.length > 0) {
           console.log('清理无效任务:', tasksToDelete.length, '个');
-          await downloadDB.deleteActiveTasks(tasksToDelete);
+          tasksToDelete.forEach(id => pendingRestoresRef.current.delete(id));
         }
 
         setTasks(downloader.getAllTasks());
       } catch (error) {
         console.error('恢复任务失败:', error);
+      } finally {
+        if (loaded) {
+          restoringRef.current = false;
+          await saveTasks(downloader.getAllTasks());
+        }
       }
     };
 
     restoreTasks();
-  }, [downloader]);
+  }, [downloader, saveTasks]);
 
   const addDownloadTask = useCallback(async (
     url: string,

@@ -1,12 +1,13 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
-import type { CompletedTask } from '@/lib/download-db';
-import { getIndexedDBVideoPlaybackUrl } from '@/lib/indexeddb-video-cache';
+import type { CompletedTask, SavedTask } from '@/lib/download-db';
+import { getIndexedDBPartialVideoPlaybackUrl, getIndexedDBVideoPlaybackUrl } from '@/lib/indexeddb-video-cache';
 
 import { LocalDownloadPlayer } from './LocalDownloadPlayer';
 
 jest.mock('@/lib/indexeddb-video-cache', () => ({
   getIndexedDBVideoPlaybackUrl: jest.fn(),
+  getIndexedDBPartialVideoPlaybackUrl: jest.fn(),
 }));
 const mockDestroy = jest.fn();
 const mockLoadSource = jest.fn();
@@ -88,4 +89,63 @@ it('revokes URLs if the player closes while storage is being read', async () => 
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:late')
   );
   expect(mockLoadSource).not.toHaveBeenCalled();
+});
+
+const partialTask: SavedTask = {
+  ...task, url: 'https://origin/list.m3u8', type: 'TS', status: 'error', finishList: [],
+  finishNum: 2, errorNum: 1, downloadIndex: 3, createdAt: 1,
+  rangeDownload: { isShowRange: false, startSegment: 0, endSegment: 3, targetSegment: 3 },
+};
+
+it('labels partial playback, stops at the cached end and frees its URLs', async () => {
+  (getIndexedDBPartialVideoPlaybackUrl as jest.Mock).mockResolvedValue({
+    hasLocal: true, partial: true, mode: 'blob', url: 'blob:partial', objectUrls: ['blob:piece', 'blob:partial'],
+  });
+  const { unmount } = render(<LocalDownloadPlayer partialTask={partialTask} onClose={jest.fn()} />);
+  await waitFor(() => expect(mockLoadSource).toHaveBeenCalledWith('blob:partial'));
+  expect(getIndexedDBPartialVideoPlaybackUrl).toHaveBeenCalledWith(partialTask, expect.any(Function));
+  expect(getIndexedDBVideoPlaybackUrl).not.toHaveBeenCalled();
+  expect(screen.getByText(/部分缓存/)).toHaveTextContent('遇缺片停止');
+  fireEvent.ended(screen.getByLabelText('已下载视频'));
+  expect(screen.getByText(/已播放到缓存末尾/)).toBeInTheDocument();
+  unmount();
+  expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:piece');
+  expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:partial');
+});
+
+it('shows the partial reader error without falling back to completed or online playback', async () => {
+  (getIndexedDBPartialVideoPlaybackUrl as jest.Mock).mockResolvedValue({ hasLocal: false, reason: '下载范围开头尚无连续可播放缓存' });
+  render(<LocalDownloadPlayer partialTask={partialTask} onClose={jest.fn()} />);
+  expect(await screen.findByRole('alert')).toHaveTextContent('下载范围开头尚无连续可播放缓存');
+  expect(getIndexedDBVideoPlaybackUrl).not.toHaveBeenCalled();
+  expect(mockLoadSource).not.toHaveBeenCalled();
+});
+
+it('rejects non-blob partial results without loading or falling back', async () => {
+  (getIndexedDBPartialVideoPlaybackUrl as jest.Mock).mockResolvedValue({ hasLocal: true, mode: 'service-worker', url: '/local/playlist.m3u8' });
+  render(<LocalDownloadPlayer partialTask={partialTask} onClose={jest.fn()} />);
+  expect(await screen.findByRole('alert')).toHaveTextContent('已阻止非本地地址');
+  expect(mockLoadSource).not.toHaveBeenCalled();
+  expect(getIndexedDBVideoPlaybackUrl).not.toHaveBeenCalled();
+});
+
+it('keeps a delayed local source ready but disables autoplay after going into the background', async () => {
+  let resolve!: (value: unknown) => void;
+  (getIndexedDBPartialVideoPlaybackUrl as jest.Mock).mockReturnValue(new Promise((done) => { resolve = done; }));
+  const visibility = jest.spyOn(document, 'visibilityState', 'get');
+  visibility.mockReturnValue('visible');
+  const { unmount } = render(<LocalDownloadPlayer partialTask={partialTask} onClose={jest.fn()} />);
+  const video = screen.getByLabelText('已下载视频') as HTMLVideoElement;
+  visibility.mockReturnValue('hidden');
+  fireEvent(document, new Event('visibilitychange'));
+  expect(video.autoplay).toBe(false);
+  expect(video.pause).toHaveBeenCalled();
+  resolve({ hasLocal: true, partial: true, mode: 'blob', url: 'blob:ready', objectUrls: ['blob:ready'] });
+  await waitFor(() => expect(mockLoadSource).toHaveBeenCalledWith('blob:ready'));
+  visibility.mockReturnValue('visible');
+  fireEvent(document, new Event('visibilitychange'));
+  expect(video.autoplay).toBe(false);
+  expect(mockDestroy).not.toHaveBeenCalled();
+  unmount();
+  visibility.mockRestore();
 });

@@ -1,0 +1,9 @@
+{
+  "name": "lintvplus-offline-web",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "build": "node build.cjs", "test": "node --test test/*.test.cjs" },
+  "dependencies": { "hls.js": "1.6.15" },
+  "devDependencies": { "typescript": "4.9.5" }
+}

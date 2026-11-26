@@ -8,6 +8,7 @@ export interface SavedTask {
   title: string;
   type: 'TS' | 'MP4';
   status: 'ready' | 'downloading' | 'pause' | 'done' | 'error';
+  errorMessage?: string;
   finishList: Array<{
     title: string;
     status: '' | 'is-downloading' | 'is-success' | 'is-error';

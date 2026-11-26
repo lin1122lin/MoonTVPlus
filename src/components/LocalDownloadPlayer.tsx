@@ -3,20 +3,24 @@
 import { X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
-import type { CompletedTask } from '@/lib/download-db';
-import { getIndexedDBVideoPlaybackUrl } from '@/lib/indexeddb-video-cache';
+import type { CompletedTask, SavedTask } from '@/lib/download-db';
+import { getIndexedDBPartialVideoPlaybackUrl, getIndexedDBVideoPlaybackUrl } from '@/lib/indexeddb-video-cache';
 
 export function LocalDownloadPlayer({
   task,
+  partialTask,
   onClose,
 }: {
-  task: CompletedTask;
   onClose: () => void;
-}) {
+} & ({ task: CompletedTask; partialTask?: never } | { task?: never; partialTask: SavedTask })) {
+  const playbackTask = partialTask || task;
   const videoRef = useRef<HTMLVideoElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [partial, setPartial] = useState(Boolean(partialTask));
+  const [ended, setEnded] = useState(false);
+  const [autoPlay, setAutoPlay] = useState(() => typeof document === 'undefined' || document.visibilityState !== 'hidden');
 
   useEffect(() => {
     const previousFocus = document.activeElement as HTMLElement | null;
@@ -45,11 +49,23 @@ export function LocalDownloadPlayer({
     let cancelled = false;
     let objectUrls: string[] = [];
     let hls: import('hls.js').default | undefined;
+    const pauseWhenHidden = () => {
+      if (document.visibilityState !== 'hidden') return;
+      video.autoplay = false;
+      setAutoPlay(false);
+      video.pause();
+    };
+    document.addEventListener('visibilitychange', pauseWhenHidden);
+    pauseWhenHidden();
     setLoading(true);
     setError('');
+    setPartial(Boolean(partialTask));
+    setEnded(false);
     const start = async () => {
       try {
-        const local = await getIndexedDBVideoPlaybackUrl(
+        const local = partialTask
+          ? await getIndexedDBPartialVideoPlaybackUrl(partialTask, () => !cancelled)
+          : await getIndexedDBVideoPlaybackUrl(
           task.source,
           task.videoId,
           task.episodeIndex
@@ -59,10 +75,15 @@ export function LocalDownloadPlayer({
           return;
         }
         objectUrls = local.objectUrls || [];
+        setPartial(local.partial === true);
         if (!local.hasLocal || !local.url)
-          throw new Error('本地缓存不存在或未完成，请重新下载此集。');
+          throw new Error(partialTask ? local.reason || '尚无连续可播放缓存。' : '本地缓存不存在或未完成，请重新下载此集。');
+        if (partialTask && (local.mode !== 'blob' || !local.url.startsWith('blob:'))) {
+          throw new Error('部分缓存只能使用本地 Blob 播放，已阻止非本地地址。');
+        }
         const { default: Hls } = await import('hls.js');
         if (cancelled) return;
+        pauseWhenHidden();
         if (Hls.isSupported()) {
           hls = new Hls();
           hls.on(Hls.Events.ERROR, (_event, data) => {
@@ -89,13 +110,14 @@ export function LocalDownloadPlayer({
     void start();
     return () => {
       cancelled = true;
+      document.removeEventListener('visibilitychange', pauseWhenHidden);
       hls?.destroy();
       video.pause();
       video.removeAttribute('src');
       video.load();
       objectUrls.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [task]);
+  }, [task, partialTask]);
 
   return (
     <div
@@ -123,10 +145,12 @@ export function LocalDownloadPlayer({
             id='local-download-title'
             className='break-words text-base font-medium'
           >
-            {task.videoTitle || task.title} ·{' '}
-            {task.episodeTitle || `第 ${task.episodeIndex + 1} 集`}
+            {task?.videoTitle || playbackTask.title}
+            {playbackTask.episodeIndex !== undefined && <> · {task?.episodeTitle || `第 ${playbackTask.episodeIndex + 1} 集`}</>}
           </h2>
-          <p className='text-sm text-green-400'>本地播放</p>
+          <p className='text-sm text-green-400'>
+            {partial ? ended ? '已播放到缓存末尾，遇缺片停止。' : '部分缓存 · 仅播放当前连续缓存，遇缺片停止。' : '本地播放'}
+          </p>
         </div>
         <button
           ref={closeRef}
@@ -134,7 +158,7 @@ export function LocalDownloadPlayer({
           onClick={onClose}
           aria-label='关闭本地播放'
           title='关闭本地播放'
-          className='flex h-11 w-11 shrink-0 items-center justify-center rounded hover:bg-white/20'
+          className='flex h-12 w-12 shrink-0 items-center justify-center rounded hover:bg-white/20'
         >
           <X className='h-5 w-5' />
         </button>
@@ -145,11 +169,12 @@ export function LocalDownloadPlayer({
           data-download-player
           controls
           playsInline
-          autoPlay
+          autoPlay={autoPlay}
           tabIndex={0}
           className='h-full w-full object-contain'
           aria-label='已下载视频'
           onLoadedMetadata={() => setLoading(false)}
+          onEnded={() => { setEnded(true); setLoading(false); }}
           onError={() => {
             setError('本地视频播放失败，请检查缓存是否完整。');
             setLoading(false);
