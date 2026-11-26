@@ -56,7 +56,7 @@ function render(rows) {
       const info = document.createElement('div'); info.className = 'episode-info';
       const title = document.createElement('strong'); title.textContent = task.episodeTitle || `第 ${task.episodeIndex + 1} 集`;
       const status = document.createElement('p');
-      status.textContent = task.downloadMode === 'indexeddb' ? (task.completed ? '网页缓存 · 本机可播放' : task.activeTask ? '部分缓存 · 可播放首连续缓存（读取时确认）' : '缓存记录存在，但视频不完整')
+      status.textContent = task.downloadMode === 'indexeddb' ? (task.completed ? '网页缓存 · 本机可播放' : task.activeTask ? '部分缓存 · 未完成' : '缓存记录存在，但视频不完整')
         : task.downloadMode === 'filesystem' ? '文件夹下载 · 需要原目录授权' : '文件导出记录 · 需选择实际文件';
       if (task.fileSize) status.textContent += ` · ${(task.fileSize / 1048576).toFixed(1)} MB`;
       info.append(title, status); row.append(info);
