@@ -36,6 +36,11 @@ on:
         required: true
         default: false
         type: boolean
+      diagnostic:
+        description: 'Enable USB WebView diagnostics for local testing only (cannot publish)'
+        required: true
+        default: false
+        type: boolean
       release_notes:
         description: 'Release notes shown in the Android update dialog'
         required: false
@@ -138,6 +143,10 @@ jobs:
           echo "A published Android release requires all signing secrets." >&2
           exit 1
 
+      - name: Prevent publishing diagnostic builds
+        if: inputs.diagnostic && inputs.publish_release
+        run: exit 1
+
       - name: Build APK
         working-directory: apps/android-mobile
         env:
@@ -152,7 +161,8 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_MOBILE_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_MOBILE_KEY_PASSWORD }}
         run: |
-          gradle assemble${{ steps.signing.outputs.build_type_task }} \
+          gradle test${{ steps.signing.outputs.build_type_task }}UnitTest assemble${{ steps.signing.outputs.build_type_task }} \
+            -PENABLE_USB_DEBUGGING="${{ inputs.diagnostic || false }}" \
             -PBASE_URL="$BASE_URL" \
             -PAPP_NAME="$APP_NAME" \
             -PUPDATE_REPOSITORY="$UPDATE_REPOSITORY" \

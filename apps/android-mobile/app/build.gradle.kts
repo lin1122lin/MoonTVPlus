@@ -2,6 +2,14 @@ plugins {
     id("com.android.application")
 }
 
+dependencies {
+    implementation("androidx.media3:media3-exoplayer:1.8.0")
+    implementation("androidx.media3:media3-exoplayer-hls:1.8.0")
+    implementation("androidx.media3:media3-ui:1.8.0")
+    implementation("androidx.media3:media3-datasource-okhttp:1.8.0")
+    testImplementation("junit:junit:4.13.2")
+}
+
 fun propOrEnv(propName: String, envName: String, defaultValue: String): String {
     return (project.findProperty(propName) as String?)
         ?: System.getenv(envName)
@@ -25,8 +33,8 @@ val updateManifestUrl = propOrEnv(
     "UPDATE_MANIFEST_URL",
     "https://github.com/$updateRepository/releases/latest/download/android-mobile-update.json"
 )
-val versionNameValue = propOrEnv("VERSION_NAME", "VERSION_NAME", "1.0.6")
-val versionCodeValue = propOrEnv("VERSION_CODE", "VERSION_CODE", "7").toIntOrNull() ?: 7
+val versionNameValue = propOrEnv("VERSION_NAME", "VERSION_NAME", "1.0.7")
+val versionCodeValue = propOrEnv("VERSION_CODE", "VERSION_CODE", "8").toIntOrNull() ?: 8
 val minSdkValue = propOrEnv("MIN_SDK", "MIN_SDK", "23").toIntOrNull() ?: 23
 
 fun escapeJavaString(value: String): String = value
@@ -52,6 +60,7 @@ android {
         versionName = versionNameValue
 
         buildConfigField("String", "BASE_URL", "\"${escapeJavaString(rawBaseUrl)}\"")
+        buildConfigField("boolean", "ENABLE_USB_DEBUGGING", (project.findProperty("ENABLE_USB_DEBUGGING") == "true").toString())
         buildConfigField(
             "String",
             "UPDATE_MANIFEST_URL",
