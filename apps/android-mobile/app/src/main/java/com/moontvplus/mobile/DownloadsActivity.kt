@@ -3,12 +3,14 @@ package com.moontvplus.mobile
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Build
 import android.provider.DocumentsContract
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -24,12 +26,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.core.view.WindowCompat
 import androidx.media3.exoplayer.offline.Download
 import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
@@ -72,6 +76,16 @@ class DownloadsActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             DownloadsTheme {
+                val dark = isSystemInDarkTheme()
+                val surface = MaterialTheme.colorScheme.surface.toArgb()
+                SideEffect {
+                    window.statusBarColor = surface
+                    window.navigationBarColor = if (Build.VERSION.SDK_INT >= 26) surface else android.graphics.Color.BLACK
+                    WindowCompat.getInsetsController(window, window.decorView).apply {
+                        isAppearanceLightStatusBars = !dark
+                        isAppearanceLightNavigationBars = Build.VERSION.SDK_INT >= 26 && !dark
+                    }
+                }
                 DownloadsScreen(
                     tasks, localFiles, loading, readError, localLoading, localError,
                     onBack = { finish() },
