@@ -234,7 +234,7 @@ public class MainActivity extends Activity {
 
     private void openLegacyDownloads() {
         showLegacyDownloads = false;
-        webView.evaluateJavascript("window.dispatchEvent(new Event('lintvplus:legacy-downloads'))", null);
+        webView.evaluateJavascript("sessionStorage.setItem('lintvplusOpenLegacyDownloads','1');window.dispatchEvent(new Event('lintvplus:legacy-downloads'))", null);
     }
 
     private boolean openSettings(String action) {
